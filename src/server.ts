@@ -1,19 +1,10 @@
-import express from "express";
 import dotenv from "dotenv";
 import connectDB from "./config/db";
-
+import app from "./app";
 
 dotenv.config();
 
-const app = express();
-app.use(express.json());
-
-// Connect Database
 connectDB();
-
-app.get("/", (req, res) => {
-  res.send("VeTau System API running...");
-});
 
 const PORT = process.env.PORT || 3000;
 
