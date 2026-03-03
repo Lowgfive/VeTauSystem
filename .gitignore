@@ -2,3 +2,14 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Ignore real environment files
+.env
+.env.*
+
+# Allow example env files to be committed
+!.env.example
+!.env.*.example
+
+# Planning and missing features md files
+mvp.md
