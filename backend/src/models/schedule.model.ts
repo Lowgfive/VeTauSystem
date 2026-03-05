@@ -3,46 +3,30 @@ import { ISchedule } from "../types/schedule.type";
 
 const ScheduleSchema = new Schema<ISchedule>(
   {
-    train: {
+    route_id: {
+      type: Schema.Types.ObjectId,
+      ref: "Route",
+      required: true,
+    },
+    train_id: {
       type: Schema.Types.ObjectId,
       ref: "Train",
       required: true,
     },
-    departureStation: {
-      type: Schema.Types.ObjectId,
-      ref: "Station",
-      required: true,
-    },
-    arrivalStation: {
-      type: Schema.Types.ObjectId,
-      ref: "Station",
-      required: true,
-    },
-    departureTime: {
+    date: {
       type: Date,
       required: true,
     },
-    arrivalTime: {
-      type: Date,
+    departure_time: {
+      type: String,
       required: true,
     },
-    price: {
-      type: Number,
-      required: true,
-    },
-    availableSeats: {
-      type: Number,
+    arrival_time: {
+      type: String,
       required: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export const Schedule = mongoose.model<ISchedule>(
-  "Schedule",
-  ScheduleSchema
-);
-
-
+export const Schedule = mongoose.model<ISchedule>("Schedule", ScheduleSchema);
