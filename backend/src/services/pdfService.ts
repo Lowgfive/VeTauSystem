@@ -3,17 +3,14 @@ import QRCode from "qrcode";
 
 interface TicketData {
     bookingCode: string;
-    passengerName: string;
-    passengerId: string;
-    passengerType: string;
+    ticketType: "Vé lượt" | "Vé ngày" | "Vé tháng";
+    lineName: string; // e.g. "Tuyến Metro số 5 (Văn Cao - Hòa Lạc)"
     fromStation: string;
     toStation: string;
-    departure: string; // e.g. "2026-03-10 08:00"
-    arrival: string;
-    trainName: string;
-    carriageNumber: string;
-    seatNumber: string;
-    seatType: string;
+    validDate: string; // e.g. "08/03/2026"
+    carriageNumber?: string;
+    seatNumber?: string;
+    seatType?: string;
     price: number;
 }
 
@@ -29,7 +26,7 @@ export const generateTicketPDF = async (ticket: TicketData): Promise<Buffer> => 
 
             // Generate QR code as data URL
             const qrDataUrl = await QRCode.toDataURL(
-                `CODE:${ticket.bookingCode}|ID:${ticket.passengerId}|SEAT:${ticket.seatNumber}`
+                `LINE:L5|FROM:${ticket.fromStation}|TO:${ticket.toStation}|SEAT:${ticket.seatNumber || 'N/A'}|TICKET:${ticket.bookingCode}`
             );
             const qrBuffer = Buffer.from(qrDataUrl.split(",")[1], "base64");
 
@@ -60,15 +57,14 @@ export const generateTicketPDF = async (ticket: TicketData): Promise<Buffer> => 
                 doc.moveDown(0.4);
             };
 
-            addRow("Họ và tên:", ticket.passengerName);
-            addRow("CCCD/Hộ chiếu:", ticket.passengerId);
-            addRow("Đối tượng:", ticket.passengerType);
-            addRow("Tàu:", ticket.trainName);
+            addRow("Loại vé:", ticket.ticketType);
+            addRow("Tuyến:", ticket.lineName);
             addRow("Ga đi:", ticket.fromStation);
             addRow("Ga đến:", ticket.toStation);
-            addRow("Giờ khởi hành:", ticket.departure);
-            addRow("Giờ đến dự kiến:", ticket.arrival);
-            addRow("Toa - Ghế:", `${ticket.carriageNumber} - ${ticket.seatNumber} (${ticket.seatType})`);
+            addRow("Ngày hiệu lực:", ticket.validDate);
+            if (ticket.carriageNumber && ticket.seatNumber) {
+                addRow("Toa - Ghế:", `${ticket.carriageNumber} - ${ticket.seatNumber} (${ticket.seatType || 'Thường'})`);
+            }
             addRow("Giá vé:", `${ticket.price.toLocaleString("vi-VN")} VNĐ`);
 
             doc.moveTo(30, doc.y).lineTo(450, doc.y).strokeColor("#ccc").stroke().moveDown(0.5);
