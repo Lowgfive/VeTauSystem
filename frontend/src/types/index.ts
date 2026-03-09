@@ -1,13 +1,33 @@
 // Định nghĩa các kiểu dữ liệu cho hệ thống đường sắt
 
+export type StationType = "underground" | "elevated" | "ground";
+
 export interface Station {
-  id: string;
-  name: string;
-  code: string;
-  province: string;
+  _id: string; // MongoDB use _id
+  station_name: string;
+  station_code: string;
+  station_order: number;
+  station_type: StationType;
+  line_id: any;
+  location: string;
+  lat?: number;
+  lng?: number;
+  is_active: boolean;
 }
 
-export type SeatType = 'ngoi-cung' | 'ngoi-mem' | 'nam-cung' | 'nam-mem' | 'nam-khoang-4' | 'nam-khoang-6';
+export interface MetroLine {
+  _id: string;
+  line_name: string;
+  line_code: string;
+  stations: Station[] | string[];
+  total_distance: number;
+  total_stations: number;
+  operating_hours: { start: string; end: string };
+  frequency_minutes: number;
+  is_active: boolean;
+}
+
+export type SeatType = 'seat' | 'priority' | 'standing';
 
 export interface SeatTypeInfo {
   id: SeatType;
@@ -17,34 +37,41 @@ export interface SeatTypeInfo {
   icon: string;
 }
 
-export type SeatStatus = 'available' | 'selected' | 'booked';
+export type SeatStatus = 'available' | 'booked' | 'locked' | 'maintenance';
 
 export interface Seat {
-  id: string;
-  number: string;
-  type: SeatType;
+  _id: string;
+  seat_number: string;
+  seat_type: SeatType;
   status: SeatStatus;
-  carriageId: string;
+  carriage_id: string;
   position: { row: number; col: number };
 }
 
 export interface Carriage {
-  id: string;
-  number: number;
-  type: SeatType;
-  totalSeats: number;
-  availableSeats: number;
+  _id: string;
+  carriage_number: number;
+  seat_type: SeatType;
+  total_seats: number;
+  standing_capacity: number;
   layout: { rows: number; cols: number };
-  trainId: string;
+  train_id: string;
+  is_active: boolean;
 }
 
+export type TrainType = "4-car" | "6-car" | "8-car";
+
 export interface Train {
-  id: string;
-  code: string;
-  name: string;
-  type: 'express' | 'standard';
-  carriages: Carriage[];
+  _id: string;
+  train_code: string;
+  train_name: string;
+  train_type: TrainType;
+  line_id: MetroLine | string;
+  total_carriages: number;
+  capacity: number;
+  max_speed: number;
   amenities: string[];
+  is_active: boolean;
 }
 
 export interface Schedule {

@@ -8,6 +8,9 @@ import routerAuth from "./routes/auth.route";
 import routerRoute from "./routes/route.route";
 import routerStation from "./routes/station.route";
 import routerSearch from "./routes/search.route";
+import routerTrain from "./routes/train.route";
+import routerMetroLine from "./routes/metroline.route";
+import routerTicket from "./routes/ticket.route";
 
 const app = express();
 
@@ -38,28 +41,31 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// ─── Swagger API Docs ─────────────────────────────────────────────────────────
+// Swagger API Docs 
 app.use(
   "/api/docs",
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "VéTàu System API Docs",
+    customSiteTitle: "Metro Hà Nội - API Docs",
   })
 );
 
-// ─── API Routes (v1) ─────────────────────────────────────────────────────────
+// API Routes (v1)
 app.use("/api/v1/auth", routerAuth);
 app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
+app.use("/api/trains", routerTrain);
+app.use("/api/metrolines", routerMetroLine);
+app.use("/api/tickets", routerTicket);
 
-// ─── 404 Fallback ─────────────────────────────────────────────────────────────
+// 404 Fallback 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────────────────
+// Global Error Handler 
 app.use(errorHandler);
 
 export default app;

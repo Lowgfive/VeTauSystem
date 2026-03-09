@@ -1,12 +1,12 @@
 import { ReactNode } from 'react';
-import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 
 interface AdminLayoutProps {
   children: ReactNode;
-  activeTab: 'dashboard' | 'tickets' | 'trains' | 'reports';
-  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'reports') => void;
+  activeTab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports';
+  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports') => void;
   onLogout: () => void;
 }
 
@@ -16,7 +16,8 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tickets' as const, label: 'Quản lý vé', icon: Ticket },
-    { id: 'trains' as const, label: 'Quản lý tàu', icon: Train },
+    { id: 'metrolines' as const, label: 'Tuyến & Ga', icon: MapPin },
+    { id: 'trains' as const, label: 'Đoàn tàu Metro', icon: Train },
     { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },
   ];
 
@@ -24,7 +25,7 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -42,7 +43,7 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
             <h1 className="text-xl font-bold">VNR Admin</h1>
             <p className="text-xs text-white/60 mt-1">Vietnam Railways</p>
           </div>
-          <button 
+          <button
             className="lg:hidden"
             onClick={() => setSidebarOpen(false)}
           >
@@ -55,7 +56,7 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            
+
             return (
               <button
                 key={item.id}
@@ -66,8 +67,8 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
                 className={`
                   w-full flex items-center gap-3 px-4 py-3 rounded-lg
                   transition-all font-medium
-                  ${isActive 
-                    ? 'bg-white text-[#0A2A43] shadow-lg' 
+                  ${isActive
+                    ? 'bg-white text-[#0A2A43] shadow-lg'
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }
                 `}
@@ -103,7 +104,7 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
             >
               <Menu className="w-6 h-6" />
             </button>
-            
+
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="font-bold text-primary">AD</span>
