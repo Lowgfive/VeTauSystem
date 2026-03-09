@@ -1,23 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
-import { Search, Plus, Edit, Trash2, Train, Calendar, MapPin, Clock, X } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { Search, Plus, Edit, Trash2, Train as TrainIcon, Calendar, MapPin, Clock, X, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import axios from 'axios';
+import { Train, MetroLine, Carriage, Seat } from '../../types';
+import { SeatMap } from '../SeatMap';
 
-interface TrainData {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  totalCoaches: number;
-  totalSeats: number;
-  status: 'active' | 'maintenance' | 'inactive';
-  routes: string[];
-}
-
+// Temporarily keep Schedule mock until Phase 3 (Schedule Management)
 interface Schedule {
   id: string;
   trainCode: string;
@@ -33,122 +26,72 @@ export function TrainManagement() {
   const [activeTab, setActiveTab] = useState<'trains' | 'schedules'>('trains');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedTrain, setSelectedTrain] = useState<TrainData | null>(null);
+  const [selectedTrain, setSelectedTrain] = useState<Train | null>(null);
 
-  // Mock data - Trains
-  const mockTrains: TrainData[] = [
-    {
-      id: '1',
-      code: 'SE1',
-      name: 'Thống Nhất',
-      type: 'Tàu cao tốc',
-      totalCoaches: 12,
-      totalSeats: 864,
-      status: 'active',
-      routes: ['Hà Nội - Sài Gòn'],
-    },
-    {
-      id: '2',
-      code: 'SE2',
-      name: 'Thống Nhất',
-      type: 'Tàu cao tốc',
-      totalCoaches: 12,
-      totalSeats: 864,
-      status: 'active',
-      routes: ['Sài Gòn - Hà Nội'],
-    },
-    {
-      id: '3',
-      code: 'SE3',
-      name: 'Bắc Nam',
-      type: 'Tàu thường',
-      totalCoaches: 10,
-      totalSeats: 720,
-      status: 'active',
-      routes: ['Hà Nội - Đà Nẵng', 'Đà Nẵng - Hà Nội'],
-    },
-    {
-      id: '4',
-      code: 'SE7',
-      name: 'Huế',
-      type: 'Tàu thường',
-      totalCoaches: 8,
-      totalSeats: 576,
-      status: 'active',
-      routes: ['Hà Nội - Huế', 'Huế - Hà Nội'],
-    },
-    {
-      id: '5',
-      code: 'TN1',
-      name: 'Sài Gòn - Nha Trang',
-      type: 'Tàu thường',
-      totalCoaches: 10,
-      totalSeats: 720,
-      status: 'maintenance',
-      routes: ['Sài Gòn - Nha Trang'],
-    },
-  ];
+  const [showSeatMapModal, setShowSeatMapModal] = useState(false);
+  const [selectedTrainForMap, setSelectedTrainForMap] = useState<Train | null>(null);
+  const [carriagesForMap, setCarriagesForMap] = useState<Carriage[]>([]);
+  const [seatsForMap, setSeatsForMap] = useState<Record<string, Seat[]>>({});
+
+  const [trains, setTrains] = useState<Train[]>([]);
+  const [lines, setLines] = useState<MetroLine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Form State for Adding Train
+  const [formData, setFormData] = useState({
+    train_code: '',
+    train_name: '',
+    train_type: '6-car',
+    line_id: ''
+  });
+
+  // API Base URL
+  const API_URL = 'http://localhost:5000/api';
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [trainsRes, linesRes] = await Promise.all([
+        axios.get(`${API_URL}/trains`),
+        axios.get(`${API_URL}/metrolines`)
+      ]);
+      setTrains(trainsRes.data.data);
+      setLines(linesRes.data.data);
+
+      if (linesRes.data.data.length > 0) {
+        setFormData(prev => ({ ...prev, line_id: linesRes.data.data[0]._id }));
+      }
+    } catch (error) {
+      console.error('Lỗi khi fetch data:', error);
+      toast.error('Không thể tải dữ liệu đoàn tàu.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Mock data - Schedules
   const mockSchedules: Schedule[] = [
     {
       id: '1',
-      trainCode: 'SE1',
-      route: 'Hà Nội → Sài Gòn',
-      departureTime: '19:30',
-      arrivalTime: '10:30+1',
-      duration: '31h 00m',
-      frequency: 'Hàng ngày',
+      trainCode: 'L5-01',
+      route: 'Văn Cao → Hòa Lạc',
+      departureTime: '06:00',
+      arrivalTime: '06:45',
+      duration: '45m',
+      frequency: '10 phút/chuyến',
       status: 'active',
-    },
-    {
-      id: '2',
-      trainCode: 'SE2',
-      route: 'Sài Gòn → Hà Nội',
-      departureTime: '19:00',
-      arrivalTime: '04:00+2',
-      duration: '31h 00m',
-      frequency: 'Hàng ngày',
-      status: 'active',
-    },
-    {
-      id: '3',
-      trainCode: 'SE3',
-      route: 'Hà Nội → Đà Nẵng',
-      departureTime: '07:00',
-      arrivalTime: '22:30',
-      duration: '15h 30m',
-      frequency: 'Hàng ngày',
-      status: 'active',
-    },
-    {
-      id: '4',
-      trainCode: 'SE7',
-      route: 'Hà Nội → Huế',
-      departureTime: '14:15',
-      arrivalTime: '04:45+1',
-      duration: '14h 30m',
-      frequency: 'Hàng ngày',
-      status: 'active',
-    },
-    {
-      id: '5',
-      trainCode: 'TN1',
-      route: 'Sài Gòn → Nha Trang',
-      departureTime: '23:00',
-      arrivalTime: '07:30+1',
-      duration: '8h 30m',
-      frequency: 'Thứ 2, 4, 6',
-      status: 'cancelled',
-    },
+    }
   ];
 
-  const [trains] = useState<TrainData[]>(mockTrains);
   const [schedules] = useState<Schedule[]>(mockSchedules);
 
   const filteredTrains = trains.filter(train =>
-    train.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    train.name.toLowerCase().includes(searchTerm.toLowerCase())
+    train.train_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    train.train_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredSchedules = schedules.filter(schedule =>
@@ -156,39 +99,70 @@ export function TrainManagement() {
     schedule.route.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusBadge = (status: string) => {
-    const configs = {
-      active: { label: 'Hoạt động', className: 'bg-green-100 text-green-800' },
-      maintenance: { label: 'Bảo trì', className: 'bg-yellow-100 text-yellow-800' },
-      inactive: { label: 'Ngừng hoạt động', className: 'bg-gray-100 text-gray-800' },
-      cancelled: { label: 'Đã hủy', className: 'bg-red-100 text-red-800' },
-    };
-    
-    const config = configs[status as keyof typeof configs];
-    return <Badge className={config.className}>{config.label}</Badge>;
+  const getStatusBadge = (status: boolean | string) => {
+    if (typeof status === 'boolean') {
+      return status ? (
+        <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>
+      ) : (
+        <Badge className="bg-gray-100 text-gray-800">Ngừng hoạt động</Badge>
+      );
+    }
+    return status === 'active' ? (
+      <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>
+    ) : (
+      <Badge className="bg-red-100 text-red-800">Đã hủy</Badge>
+    );
   };
 
-  const handleAddTrain = () => {
-    toast.success('Chức năng đang phát triển');
-    setShowAddModal(false);
+  const handleAddTrain = async () => {
+    try {
+      if (!formData.train_code || !formData.train_name || !formData.line_id) {
+        toast.error('Vui lòng nhập đầy đủ thông tin');
+        return;
+      }
+      await axios.post(`${API_URL}/trains`, formData);
+      toast.success('Thêm tàu thành công');
+      setShowAddModal(false);
+      fetchData();
+    } catch (error) {
+      toast.error('Có lỗi xảy ra khi thêm tàu');
+    }
   };
 
-  const handleEditTrain = (train: TrainData) => {
+  const handleViewMap = async (train: Train) => {
+    setSelectedTrainForMap(train);
+    try {
+      const res = await axios.get(`${API_URL}/trains/${train._id}/seatmap`);
+      setCarriagesForMap(res.data.data.carriages);
+      setSeatsForMap(res.data.data.seatsByCarriage);
+      setShowSeatMapModal(true);
+    } catch (e) {
+      toast.error('Không thể tải sơ đồ ghế');
+    }
+  };
+
+  const handleEditTrain = (train: Train) => {
     setSelectedTrain(train);
     toast.success('Chức năng đang phát triển');
   };
 
-  const handleDeleteTrain = (train: TrainData) => {
-    if (confirm(`Bạn có chắc muốn xóa tàu ${train.code}?`)) {
-      toast.success(`Đã xóa tàu ${train.code}`);
+  const handleDeleteTrain = async (train: Train) => {
+    if (confirm(`Bạn có chắc muốn xóa tàu ${train.train_code}?`)) {
+      try {
+        await axios.delete(`${API_URL}/trains/${train._id}`);
+        toast.success(`Đã xóa tàu ${train.train_code}`);
+        fetchData();
+      } catch (error) {
+        toast.error('Có lỗi xảy ra khi xóa tàu');
+      }
     }
   };
 
   const trainStats = [
     { label: 'Tổng số tàu', value: trains.length, color: 'bg-blue-500' },
-    { label: 'Đang hoạt động', value: trains.filter(t => t.status === 'active').length, color: 'bg-green-500' },
-    { label: 'Đang bảo trì', value: trains.filter(t => t.status === 'maintenance').length, color: 'bg-yellow-500' },
-    { label: 'Tổng ghế', value: trains.reduce((sum, t) => sum + t.totalSeats, 0), color: 'bg-purple-500' },
+    { label: 'Đang hoạt động', value: trains.filter(t => t.is_active).length, color: 'bg-green-500' },
+    { label: 'Ngừng hoạt động', value: trains.filter(t => !t.is_active).length, color: 'bg-gray-500' },
+    { label: 'Tổng ghế', value: trains.reduce((sum, t) => sum + (t.capacity || 0), 0), color: 'bg-purple-500' },
   ];
 
   return (
@@ -219,22 +193,20 @@ export function TrainManagement() {
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('trains')}
-            className={`pb-3 px-1 font-medium border-b-2 transition-colors ${
-              activeTab === 'trains'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-gray-900'
-            }`}
+            className={`pb-3 px-1 font-medium border-b-2 transition-colors ${activeTab === 'trains'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-gray-900'
+              }`}
           >
-            <Train className="w-4 h-4 inline mr-2" />
+            <TrainIcon className="w-4 h-4 inline mr-2" />
             Danh sách tàu
           </button>
           <button
             onClick={() => setActiveTab('schedules')}
-            className={`pb-3 px-1 font-medium border-b-2 transition-colors ${
-              activeTab === 'schedules'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-gray-900'
-            }`}
+            className={`pb-3 px-1 font-medium border-b-2 transition-colors ${activeTab === 'schedules'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-gray-900'
+              }`}
           >
             <Calendar className="w-4 h-4 inline mr-2" />
             Lịch trình
@@ -254,7 +226,7 @@ export function TrainManagement() {
               className="pl-10"
             />
           </div>
-          
+
           <Button onClick={() => setShowAddModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             {activeTab === 'trains' ? 'Thêm tàu mới' : 'Thêm lịch trình'}
@@ -266,46 +238,48 @@ export function TrainManagement() {
       {activeTab === 'trains' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredTrains.map((train) => (
-            <Card key={train.id} className="p-6">
+            <Card key={train._id} className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Train className="w-6 h-6 text-primary" />
+                    <TrainIcon className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">{train.code}</h3>
-                    <p className="text-sm text-muted-foreground">{train.name}</p>
+                    <h3 className="font-bold text-lg">{train.train_code}</h3>
+                    <p className="text-sm text-muted-foreground">{train.train_name}</p>
                   </div>
                 </div>
-                {getStatusBadge(train.status)}
+                {getStatusBadge(train.is_active)}
               </div>
 
               <div className="space-y-3 mb-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Loại tàu:</span>
-                  <span className="font-medium">{train.type}</span>
+                  <span className="font-medium">{train.train_type}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Số toa:</span>
-                  <span className="font-medium">{train.totalCoaches} toa</span>
+                  <span className="font-medium">{train.total_carriages} toa</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Tổng ghế:</span>
-                  <span className="font-medium">{train.totalSeats} ghế</span>
+                  <span className="font-medium">{train.capacity} ghế</span>
                 </div>
                 <div className="pt-2 border-t">
                   <p className="text-sm text-muted-foreground mb-1">Tuyến đường:</p>
                   <div className="flex flex-wrap gap-1">
-                    {train.routes.map((route, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {route}
-                      </Badge>
-                    ))}
+                    <Badge variant="secondary" className="text-xs">
+                      {typeof train.line_id === 'object' ? (train.line_id as MetroLine).line_name : 'Line 5'}
+                    </Badge>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewMap(train)}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Sơ đồ
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -358,7 +332,7 @@ export function TrainManagement() {
                   <tr key={schedule.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <Train className="w-4 h-4 text-muted-foreground" />
+                        <TrainIcon className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium">{schedule.trainCode}</span>
                       </div>
                     </td>
@@ -421,39 +395,45 @@ export function TrainManagement() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Mã tàu</Label>
-                      <Input placeholder="SE10" />
+                      <Input
+                        placeholder="L5-01"
+                        value={formData.train_code}
+                        onChange={(e: any) => setFormData({ ...formData, train_code: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Tên tàu</Label>
-                      <Input placeholder="Thống Nhất" />
+                      <Input
+                        placeholder="Tàu Tuyến 5"
+                        value={formData.train_name}
+                        onChange={(e: any) => setFormData({ ...formData, train_name: e.target.value })}
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Loại tàu</Label>
-                    <select className="w-full px-3 py-2 border rounded-lg">
-                      <option>Tàu cao tốc</option>
-                      <option>Tàu thường</option>
+                    <Label>Kích thước tàu</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-lg"
+                      value={formData.train_type}
+                      onChange={(e: any) => setFormData({ ...formData, train_type: e.target.value })}
+                    >
+                      <option value="4-car">4 toa</option>
+                      <option value="6-car">6 toa</option>
+                      <option value="8-car">8 toa</option>
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Số toa</Label>
-                      <Input type="number" placeholder="12" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tổng số ghế</Label>
-                      <Input type="number" placeholder="864" />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label>Trạng thái</Label>
-                    <select className="w-full px-3 py-2 border rounded-lg">
-                      <option value="active">Hoạt động</option>
-                      <option value="maintenance">Bảo trì</option>
-                      <option value="inactive">Ngừng hoạt động</option>
+                    <Label>Tuyến đường</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-lg"
+                      value={formData.line_id}
+                      onChange={(e: any) => setFormData({ ...formData, line_id: e.target.value })}
+                    >
+                      {lines.map((line: any) => (
+                        <option key={line._id} value={line._id}>{line.line_name}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -473,7 +453,7 @@ export function TrainManagement() {
                     <Label>Mã tàu</Label>
                     <select className="w-full px-3 py-2 border rounded-lg">
                       {trains.map(train => (
-                        <option key={train.id} value={train.code}>{train.code} - {train.name}</option>
+                        <option key={train._id} value={train.train_code}>{train.train_code} - {train.train_name}</option>
                       ))}
                     </select>
                   </div>
@@ -515,6 +495,29 @@ export function TrainManagement() {
                   </div>
                 </div>
               )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Seat Map Modal */}
+      {showSeatMapModal && selectedTrainForMap && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">
+                  Sơ đồ ghế - Tàu {selectedTrainForMap.train_code}
+                </h2>
+                <button onClick={() => setShowSeatMapModal(false)}>
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <SeatMap
+                carriages={carriagesForMap}
+                seatsData={seatsForMap}
+                readOnly={true}
+              />
             </div>
           </Card>
         </div>
