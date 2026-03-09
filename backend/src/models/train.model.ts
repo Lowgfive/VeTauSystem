@@ -13,6 +13,7 @@ const trainSchema = new Schema<ITrain>(
         // Mã tàu duy nhất (VD: "M5-001")
         train_code: { type: String, required: true, unique: true },
 
+
         // Loại đoàn tàu: 4 toa / 6 toa / 8 toa
         train_type: {
             type: String,
@@ -44,6 +45,9 @@ const trainSchema = new Schema<ITrain>(
 
         // Tàu có đang hoạt động không
         is_active: { type: Boolean, default: true },
+
+        status : {type : String, enum : ["active", "inactive"], default : "active"} 
+
     },
     { timestamps: true }
 );
