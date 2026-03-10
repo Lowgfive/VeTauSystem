@@ -229,7 +229,7 @@ export class SearchService {
           if (!pathIds) {
             return {
               success: false,
-              message: "Không tìm thấy đường đi giữa 2 ga",
+              message: "Không có chuyến tàu nào!",
             };
           }
 

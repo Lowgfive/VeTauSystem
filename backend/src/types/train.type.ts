@@ -19,6 +19,8 @@ export interface ITrain extends Document {
 export interface ITrain {
     train_name: string;
     train_code: string;
+    template_id : Types.ObjectId;
+    direction : string;
     status : string;
 
 }
