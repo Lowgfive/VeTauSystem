@@ -12,25 +12,16 @@ const stationSchema = new Schema<IStation>(
       unique: true,
       required: true,
     },
-
-    // Mã ga duy nhất (VD: "L5-01", "L5-02"...)
-    station_code: {
-      type: String,
-      unique: true,
-      required: true,
+    location : {
+      type : String,
+      required : true
     },
 
-    // Thứ tự ga trên tuyến (1-20)
     station_order: {
       type: Number,
       required: true,
     },
 
-    // Tọa độ GPS (optional)
-    lat: { type: Number },
-    lng: { type: Number },
-
-    // Ga có đang hoạt động không
     is_active: { type: Boolean, default: true },
   },
   { timestamps: true }
