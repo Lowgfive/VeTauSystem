@@ -9,7 +9,6 @@ import routerRoute from "./routes/route.route";
 import routerStation from "./routes/station.route";
 import routerSearch from "./routes/search.route";
 import routerTrain from "./routes/train.route";
-import routerMetroLine from "./routes/metroline.route";
 import routerTicket from "./routes/ticket.route";
 
 const app = express();
@@ -57,7 +56,6 @@ app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
 app.use("/api/trains", routerTrain);
-app.use("/api/metrolines", routerMetroLine);
 app.use("/api/tickets", routerTicket);
 
 // 404 Fallback 

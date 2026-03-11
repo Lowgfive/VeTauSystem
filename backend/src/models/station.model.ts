@@ -6,7 +6,7 @@ import { IStation } from "../types/station.type";
 
 const stationSchema = new Schema<IStation>(
   {
-    // Tên ga hiển thị (VD: "Quần Ngựa", "Kim Mã"...)
+
     station_name: {
       type: String,
       unique: true,
