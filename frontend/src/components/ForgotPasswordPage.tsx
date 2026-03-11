@@ -1,133 +1,110 @@
 import { useState } from "react";
-import { Train, ArrowLeft, Mail, ArrowRight } from "lucide-react";
+import { Train, Mail, ArrowLeft } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 interface ForgotPasswordPageProps {
-  onSendOTP: (email: string) => void;
+  onSubmit: (email: string) => void;
   onNavigateToLogin: () => void;
-  onNavigateToHome: () => void;
+  isLoading?: boolean;
 }
 
 export function ForgotPasswordPage({
-  onSendOTP,
+  onSubmit,
   onNavigateToLogin,
-  onNavigateToHome,
+  isLoading = false,
 }: ForgotPasswordPageProps) {
   const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>();
+
+  const validateForm = () => {
+    if (!email) {
+      setError("Vui lòng nhập email");
+      return false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Email không hợp lệ");
+      return false;
+    }
+    setError(undefined);
+    return true;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Vui lòng nhập email");
-      return;
+    if (validateForm()) {
+      onSubmit(email);
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Email không hợp lệ");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onSendOTP(email);
-    }, 800);
   };
 
   return (
-    <div className="h-screen flex relative overflow-hidden bg-gray-50 items-center justify-center p-4">
-      <div className="w-full max-w-md relative z-10">
-        <button
-          onClick={onNavigateToHome}
-          className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors mb-6 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-sm font-medium">Trở về trang chủ</span>
-        </button>
-
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="p-3 bg-primary rounded-xl shadow-lg">
-            <Train className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <Card className="w-full max-w-md p-8 bg-white shadow-sm border border-gray-100 rounded-xl relative z-10">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Train className="w-7 h-7" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Đường Sắt Việt Nam</h1>
-            <p className="text-sm text-gray-600">Hệ thống đặt vé trực tuyến</p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Quên mật khẩu?</h1>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            Vui lòng nhập địa chỉ email đã đăng ký. Chúng tôi sẽ gửi liên kết để đặt lại mật khẩu cho bạn.
+          </p>
         </div>
 
-        <Card className="p-8 shadow-2xl border-0 bg-white">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Quên mật khẩu?</h2>
-            <p className="text-sm text-gray-600">
-              Nhập email đã đăng ký của bạn. Chúng tôi sẽ gửi một mã xác thực (OTP) tới email này.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-semibold text-gray-900">
-                Email
-              </Label>
-              <div className="relative group">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="ten@email.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError(null);
-                  }}
-                  className={`pl-11 h-11 text-sm border-2 transition-all ${
-                    error ? "border-red-500 focus-visible:ring-red-500" : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                  }`}
-                />
-              </div>
-              {error && (
-                <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                  <span className="w-1 h-1 bg-red-600 rounded-full"></span>
-                  {error}
-                </p>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-semibold text-gray-900">
+              Email
+            </Label>
+            <div className="relative group">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="ví dụ: admin@fpt.edu.vn"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(undefined);
+                }}
+                className={`pl-11 h-11 text-sm transition-all focus-visible:ring-1 focus-visible:ring-offset-0 ${
+                  error
+                    ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500"
+                    : "border-gray-200 focus-visible:border-blue-600 focus-visible:ring-blue-600"
+                }`}
+              />
             </div>
-
-            <Button
-              type="submit"
-              size="lg"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover text-white font-semibold h-11 text-sm group shadow-lg hover:shadow-xl transition-all"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Đang xử lý...
-                </div>
-              ) : (
-                <>
-                  Gửi mã xác thực
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Nhớ mật khẩu?{" "}
-              <button
-                onClick={onNavigateToLogin}
-                className="text-primary hover:text-primary-hover font-bold transition-colors hover:underline"
-              >
-                Đăng nhập
-              </button>
-            </p>
+            {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
           </div>
-        </Card>
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm transition-colors"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Đang gửi...
+              </div>
+            ) : (
+              "Gửi yêu cầu"
+            )}
+          </Button>
+
+          <button
+            type="button"
+            onClick={onNavigateToLogin}
+            className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Quay lại Đăng nhập
+          </button>
+        </form>
+      </Card>
+
+      <div className="mt-8 text-center text-xs text-gray-400">
+        © {new Date().getFullYear()} VNR High-Speed Rail. Toàn bộ thông tin được bảo mật mã hóa SSL.
       </div>
     </div>
   );
