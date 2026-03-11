@@ -26,26 +26,6 @@ const stationSchema = new Schema<IStation>(
       required: true,
     },
 
-    // Loại ga: đi ngầm / trên cao / mặt đất
-    station_type: {
-      type: String,
-      enum: ["underground", "elevated", "ground"],
-      required: true,
-    },
-
-    // Thuộc tuyến Metro nào
-    line_id: {
-      type: Schema.Types.ObjectId,
-      ref: "MetroLine",
-      required: true,
-    },
-
-    // Địa chỉ / khu vực
-    location: {
-      type: String,
-      required: true,
-    },
-
     // Tọa độ GPS (optional)
     lat: { type: Number },
     lng: { type: Number },

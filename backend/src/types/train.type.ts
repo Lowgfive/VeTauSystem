@@ -15,7 +15,7 @@ export interface ITrain extends Document {
   max_speed: number;            // Tốc độ tối đa (km/h)
   amenities: string[];          // Tiện ích trên tàu (wifi, điều hòa...)
   is_active: boolean;           // Tàu có đang hoạt động không
-
+}
 export interface ITrain {
     train_name: string;
     train_code: string;
