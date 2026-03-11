@@ -7,6 +7,18 @@ export const apiClient = axios.create({
     timeout: 10000,
 });
 
+apiClient.interceptors.request.use(
+  (config) => {
+    // authSlice.ts saves the token directly to localStorage under the key "token"
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -14,5 +26,3 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-

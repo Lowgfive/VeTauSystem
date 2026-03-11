@@ -51,7 +51,10 @@ interface HomepageProps {
   onNavigateToSchedule?: () => void;
   onNavigateToSupport?: () => void;
   onNavigateToAdmin?: () => void;
+  onLogout?: () => void;
   isSearching?: boolean;
+  isLoggedIn?: boolean;
+  userName?: string;
 }
 
 export function Homepage({
@@ -61,7 +64,10 @@ export function Homepage({
   onNavigateToSchedule,
   onNavigateToSupport,
   onNavigateToAdmin,
+  onLogout,
   isSearching,
+  isLoggedIn = false,
+  userName,
 }: HomepageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [originId, setOriginId] = useState<string>("");
@@ -174,7 +180,7 @@ export function Homepage({
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigateToSchedule();
+                  onNavigateToSchedule?.();
                 }}
                 className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
               >
@@ -184,7 +190,7 @@ export function Homepage({
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigateToMyBookings();
+                  onNavigateToMyBookings?.();
                 }}
                 className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
               >
@@ -194,7 +200,7 @@ export function Homepage({
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigateToSupport();
+                  onNavigateToSupport?.();
                 }}
                 className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
               >
@@ -217,14 +223,30 @@ export function Homepage({
                 </button>
               )}
 
-              <Button
-                variant="secondary"
-                size="sm"
-                className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 px-6 h-10"
-                onClick={onNavigateToLogin}
-              >
-                Đăng nhập
-              </Button>
+              {isLoggedIn ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-white/90">
+                    Xin chào, {userName || "Bạn"}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="bg-white/20 border border-white/40 text-white hover:bg-white/30 font-semibold px-4 h-10"
+                    onClick={onLogout}
+                  >
+                    Đăng xuất
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 px-6 h-10"
+                  onClick={onNavigateToLogin}
+                >
+                  Đăng nhập
+                </Button>
+              )}
             </nav>
 
             {/* Mobile Menu Button - Enhanced */}
@@ -255,7 +277,7 @@ export function Homepage({
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    onNavigateToSchedule();
+                    onNavigateToSchedule?.();
                   }}
                   className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
                 >
@@ -265,7 +287,7 @@ export function Homepage({
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    onNavigateToMyBookings();
+                    onNavigateToMyBookings?.();
                   }}
                   className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
                 >
@@ -281,14 +303,30 @@ export function Homepage({
                 >
                   Hỗ trợ
                 </a>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white text-primary hover:bg-white/90 w-full mt-2"
-                  onClick={onNavigateToLogin}
-                >
-                  Đăng nhập
-                </Button>
+                {isLoggedIn ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <p className="text-sm font-semibold text-white/90 text-center">
+                      Xin chào, {userName || "Bạn"}
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-white/20 border border-white/40 text-white hover:bg-white/30 w-full"
+                      onClick={onLogout}
+                    >
+                      Đăng xuất
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="bg-white text-primary hover:bg-white/90 w-full mt-2"
+                    onClick={onNavigateToLogin}
+                  >
+                    Đăng nhập
+                  </Button>
+                )}
               </div>
             </nav>
           )}
