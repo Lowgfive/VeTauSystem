@@ -58,7 +58,7 @@ export const loginService = async (
     // 1. Check if user exists
     const user = await UserModel.findOne({ email }).select("+password");
     if (!user) {
-        const error = new Error("Email đã tồn tại !!") as Error & { statusCode: number };
+        const error = new Error("Email hoặc mật khẩu không đúng") as Error & { statusCode: number };
         error.statusCode = 401;
         throw error;
     }

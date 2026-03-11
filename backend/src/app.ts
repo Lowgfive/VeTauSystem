@@ -10,12 +10,27 @@ import routerStation from "./routes/station.route";
 import routerSearch from "./routes/search.route";
 import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
+import routerBooking from "./routes/booking.route";
 
 const app = express();
 
 // ─── Global Middlewares ──────────────────────────────────────────────────────
+const allowedOrigins = [
+  ...(process.env.CLIENT_URL || "").split(",").map((o) => o.trim()).filter(Boolean),
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:4173",
+];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. Postman, curl, mobile)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: "10mb" }));
@@ -57,6 +72,7 @@ app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
 app.use("/api/trains", routerTrain);
 app.use("/api/tickets", routerTicket);
+app.use("/api/v1/bookings", routerBooking);
 
 // 404 Fallback 
 app.use((_req, res) => {
