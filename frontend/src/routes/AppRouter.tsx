@@ -14,6 +14,7 @@ const RegisterPage = lazy(() => import("../pages/RegisterPage"));
 const SupportPage = lazy(() => import("../pages/SupportPage"));
 const AdminPage = lazy(() => import("../pages/AdminPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
+const ProfilePage = lazy(() => import("../pages/ProfilePage"));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -61,6 +62,7 @@ export const AppRouter = () => (
 
             {/* Protected - must be logged in */}
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
             {/* Admin only */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
