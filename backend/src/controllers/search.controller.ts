@@ -3,7 +3,7 @@ import { SearchService } from "../services/search.service";
 
 export class SearchController {
   static async search(req: Request, res: Response) {
-    const { departureCode, arrivalCode, date } = req.body;
+    const { departureCode, arrivalCode, date , returndate} = req.body;
 
     if (!departureCode || !arrivalCode || !date) {
       return res.status(400).json({
@@ -14,7 +14,8 @@ export class SearchController {
     const result = await SearchService.searchTrain(
       departureCode,
       arrivalCode,
-      date
+      date,
+      returndate
     );
 
     res.json(result);
