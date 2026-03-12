@@ -12,6 +12,7 @@ import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
 import routerBooking from "./routes/booking.route";
 import routerSchedule from "./routes/schedule.route";
+import routerPayment from "./routes/payment.route";
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use("/api/v1/schedules", routerSchedule);
 app.use("/api/trains", routerTrain);
 app.use("/api/tickets", routerTicket);
 app.use("/api/v1/bookings", routerBooking);
+app.use("/api/v1/payments", routerPayment);
 
 // 404 Fallback 
 app.use((_req, res) => {
