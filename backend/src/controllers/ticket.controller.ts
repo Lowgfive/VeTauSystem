@@ -1,36 +1,74 @@
 import { Request, Response, NextFunction } from "express";
 import { generateTicketPDF } from "../services/pdfService";
 import { sendTicketEmail } from "../services/emailService";
+import BookingModel from "../models/booking.model";
 
-// Mock data generator for Metro tickets
-const generateMockMetroTicket = (bookingCode: string) => {
+// Hàm helper để chuẩn bị dữ liệu vé từ Booking document
+const prepareTicketData = async (bookingCode: string) => {
+    const booking = await BookingModel.findOne({ booking_code: bookingCode })
+        .populate({
+            path: "user_id",
+            select: "name email"
+        })
+        .populate({
+            path: "schedule_id",
+            populate: {
+                path: "route_id",
+                populate: [
+                    { path: "departure_station_id" },
+                    { path: "arrival_station_id" }
+                ]
+            }
+        })
+        .populate({
+            path: "seat_id",
+            populate: {
+                path: "carriage_id",
+                populate: {
+                    path: "train_id",
+                    populate: {
+                        path: "line_id"
+                    }
+                }
+            }
+        });
+
+    if (!booking) return null;
+
+    const b = booking as any;
     return {
-        bookingCode,
-        ticketType: "Vé lượt" as const,
-        lineName: "Tuyến Metro số 5 (Văn Cao - Hòa Lạc)",
-        fromStation: "Quần Ngựa",
-        toStation: "Mễ Trì",
-        validDate: new Date().toLocaleDateString("vi-VN"),
-        carriageNumber: "1",
-        seatNumber: "4A",
-        seatType: "Thường",
-        price: 15000,
+        bookingCode: b.booking_code,
+        customerName: b.user_id?.name || "Khách hàng",
+        ticketType: "Vé điện tử",
+        lineName: b.seat_id?.carriage_id?.train_id?.line_id?.line_name || "Tuyến Metro số 5",
+        fromStation: b.schedule_id?.route_id?.departure_station_id?.station_name || "Ga đi",
+        toStation: b.schedule_id?.route_id?.arrival_station_id?.station_name || "Ga đến",
+        validDate: new Date(b.schedule_id?.date).toLocaleDateString("vi-VN"),
+        departureTime: b.schedule_id?.departure_time,
+        carriageNumber: b.seat_id?.carriage_id?.carriage_number?.toString(),
+        seatNumber: b.seat_id?.seat_number,
+        seatType: b.seat_id?.carriage_id?.seat_type,
+        price: b.price
     };
 };
 
 export const downloadTicket = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const bookingCode = req.params.bookingCode;
+        const bookingCode = req.params.bookingCode as string;
         if (!bookingCode) {
             return res.status(400).json({ success: false, message: "Missing booking code" });
         }
-        const mockTicket = generateMockMetroTicket(bookingCode as string);
 
-        const pdfBuffer = await generateTicketPDF(mockTicket);
+        const ticketData = await prepareTicketData(bookingCode);
+        if (!ticketData) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy thông tin đặt vé" });
+        }
+
+        const pdfBuffer = await generateTicketPDF(ticketData);
 
         res.set({
             "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename=metro-ticket-${bookingCode}.pdf`,
+            "Content-Disposition": `attachment; filename=ticket-${bookingCode}.pdf`,
             "Content-Length": pdfBuffer.length,
         });
 
@@ -49,8 +87,12 @@ export const sendEmailTicket = async (req: Request, res: Response, next: NextFun
             return res.status(400).json({ success: false, message: "Thiếu mã vé hoặc email." });
         }
 
-        const mockTicket = generateMockMetroTicket(bookingCode);
-        const pdfBuffer = await generateTicketPDF(mockTicket);
+        const ticketData = await prepareTicketData(bookingCode);
+        if (!ticketData) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy thông tin đặt vé" });
+        }
+
+        const pdfBuffer = await generateTicketPDF(ticketData);
 
         await sendTicketEmail({
             to: email,
