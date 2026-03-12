@@ -19,6 +19,7 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URL || "").split(",").map((o) => o.trim()).filter(Boolean),
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:4173",
 ];
 
