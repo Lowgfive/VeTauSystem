@@ -15,6 +15,8 @@ const SupportPage = lazy(() => import("../pages/SupportPage"));
 const AdminPage = lazy(() => import("../pages/AdminPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 const ProfilePage = lazy(() => import("../pages/ProfilePage"));
+const ForgotPasswordPage = lazy(() => import("../pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("../pages/ResetPasswordPage"));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -59,6 +61,8 @@ export const AppRouter = () => (
             {/* Guest only (redirect to home if already logged in) */}
             <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
             <Route path="/register" element={<GuestOnly><RegisterPage /></GuestOnly>} />
+            <Route path="/forgot-password" element={<GuestOnly><ForgotPasswordPage /></GuestOnly>} />
+            <Route path="/reset-password" element={<GuestOnly><ResetPasswordPage /></GuestOnly>} />
 
             {/* Protected - must be logged in */}
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />

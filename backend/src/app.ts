@@ -12,6 +12,7 @@ import routerSearch from "./routes/search.route";
 import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
 import routerBooking from "./routes/booking.route";
+import routerSchedule from "./routes/schedule.route";
 
 const app = express();
 
@@ -20,6 +21,7 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URL || "").split(",").map((o) => o.trim()).filter(Boolean),
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:4173",
 ];
 
@@ -72,6 +74,7 @@ app.use("/api/v1/auth", routerAuth);
 app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
+app.use("/api/v1/schedules", routerSchedule);
 app.use("/api/trains", routerTrain);
 app.use("/api/tickets", routerTicket);
 app.use("/api/v1/bookings", routerBooking);

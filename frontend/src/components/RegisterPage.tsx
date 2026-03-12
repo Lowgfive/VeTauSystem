@@ -20,6 +20,8 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
+import { authService } from "../services/auth.service";
+import { toast } from "sonner";
 
 interface RegisterPageProps {
   onRegister: (data: {
@@ -114,19 +116,33 @@ export function RegisterPage({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
       setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        onRegister({
-          fullName: formData.fullName,
+      try {
+        await authService.register({
+          name: formData.fullName, // Backend expects 'name'
           email: formData.email,
-          phone: formData.phone,
           password: formData.password,
         });
-      }, 1000);
+
+        // Show success using sonner Toaster
+        toast.success("Đăng ký thành công!", {
+          description: "Vui lòng đăng nhập để tiếp tục.",
+        });
+
+        // Trigger the callback to return to Login page
+        setTimeout(() => {
+          onNavigateToLogin();
+        }, 1500);
+      } catch (error: any) {
+        toast.error("Đăng ký thất bại", {
+          description: error.message || "Vui lòng kiểm tra lại thông tin.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -339,11 +355,10 @@ export function RegisterPage({
                     onChange={(e) =>
                       updateField("fullName", e.target.value)
                     }
-                    className={`pl-10 h-9 text-sm border-2 transition-all ${
-                      errors.fullName
-                        ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                    }`}
+                    className={`pl-10 h-9 text-sm border-2 transition-all ${errors.fullName
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
+                      }`}
                   />
                 </div>
                 {errors.fullName && (
@@ -373,11 +388,10 @@ export function RegisterPage({
                       onChange={(e) =>
                         updateField("email", e.target.value)
                       }
-                      className={`pl-10 h-9 text-sm border-2 transition-all ${
-                        errors.email
-                          ? "border-red-500 focus-visible:ring-red-500"
-                          : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                      }`}
+                      className={`pl-10 h-9 text-sm border-2 transition-all ${errors.email
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
+                        }`}
                     />
                   </div>
                   {errors.email && (
@@ -405,11 +419,10 @@ export function RegisterPage({
                       onChange={(e) =>
                         updateField("phone", e.target.value)
                       }
-                      className={`pl-10 h-9 text-sm border-2 transition-all ${
-                        errors.phone
-                          ? "border-red-500 focus-visible:ring-red-500"
-                          : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                      }`}
+                      className={`pl-10 h-9 text-sm border-2 transition-all ${errors.phone
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
+                        }`}
                     />
                   </div>
                   {errors.phone && (
@@ -438,11 +451,10 @@ export function RegisterPage({
                     onChange={(e) =>
                       updateField("password", e.target.value)
                     }
-                    className={`pl-10 pr-10 h-9 text-sm border-2 transition-all ${
-                      errors.password
-                        ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                    }`}
+                    className={`pl-10 pr-10 h-9 text-sm border-2 transition-all ${errors.password
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
+                      }`}
                   />
                   <button
                     type="button"
@@ -466,22 +478,20 @@ export function RegisterPage({
                       {[1, 2, 3, 4].map((level) => (
                         <div
                           key={level}
-                          className={`h-1 flex-1 rounded-full transition-all ${
-                            level <= passwordStrength.strength
-                              ? passwordStrength.color
-                              : "bg-gray-200"
-                          }`}
+                          className={`h-1 flex-1 rounded-full transition-all ${level <= passwordStrength.strength
+                            ? passwordStrength.color
+                            : "bg-gray-200"
+                            }`}
                         />
                       ))}
                     </div>
                     <p
-                      className={`text-xs font-medium whitespace-nowrap ${
-                        passwordStrength.strength === 1
-                          ? "text-red-600"
-                          : passwordStrength.strength === 2
-                            ? "text-yellow-600"
-                            : "text-green-600"
-                      }`}
+                      className={`text-xs font-medium whitespace-nowrap ${passwordStrength.strength === 1
+                        ? "text-red-600"
+                        : passwordStrength.strength === 2
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                        }`}
                     >
                       {passwordStrength.label}
                     </p>
@@ -518,11 +528,10 @@ export function RegisterPage({
                         e.target.value,
                       )
                     }
-                    className={`pl-10 pr-10 h-9 text-sm border-2 transition-all ${
-                      errors.confirmPassword
-                        ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                    }`}
+                    className={`pl-10 pr-10 h-9 text-sm border-2 transition-all ${errors.confirmPassword
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
+                      }`}
                   />
                   <button
                     type="button"
@@ -542,7 +551,7 @@ export function RegisterPage({
                 </div>
                 {formData.confirmPassword &&
                   formData.password ===
-                    formData.confirmPassword && (
+                  formData.confirmPassword && (
                     <p className="text-xs text-green-600 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
                       Mật khẩu khớp
