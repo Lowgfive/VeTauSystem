@@ -4,7 +4,9 @@ import { Types, Document } from "mongoose";
 export type SeatType =
     | "seat"       // Ghế ngồi thường
     | "priority"   // Ghế ưu tiên (người già, khuyết tật, phụ nữ mang thai)
-    | "standing";  // Khu vực đứng
+    | "standing"   // Khu vực đứng
+    | "business"   // Hạng thương gia
+    | "economy";    // Hạng phổ thông (nếu phân tách với seat thường)
 
 // ─── Layout mô tả cách bố trí ghế trong toa Metro ───────────────────────────
 export interface CarriageLayout {

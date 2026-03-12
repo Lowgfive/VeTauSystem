@@ -10,9 +10,20 @@ const trainSchema = new Schema<ITrain>(
         // Tên đoàn tàu hiển thị
         train_name: { type: String, required: true },
 
-        direction : {type : String, enum : ["forward", "backward"]},
+        // Mã đoàn tàu duy nhất
+        train_code: { type: String, required: true, unique: true },
 
-        status : {type : String, enum : ["active", "inactive"], default : "active"} 
+        // Loại đoàn tàu
+        train_type: { type: String, enum: ["4-car", "6-car", "8-car"] },
+
+        // Tuyến metro
+        line_id: { type: Schema.Types.ObjectId, ref: "MetroLine" },
+
+        direction: { type: String, enum: ["forward", "backward"] },
+
+        total_carriages: { type: Number },
+
+        status: { type: String, enum: ["active", "inactive"], default: "active" }
 
     },
     { timestamps: true }

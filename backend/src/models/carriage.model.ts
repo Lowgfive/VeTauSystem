@@ -17,10 +17,10 @@ const carriageSchema = new Schema<ICarriage>(
         // Số thứ tự toa trong đoàn (1, 2, 3...)
         carriage_number: { type: Number, required: true },
 
-        // Loại chỗ chính: seat (thường) / priority (ưu tiên) / standing
+        // Loại chỗ chính: seat (thường) / priority (ưu tiên) / standing / business / economy
         seat_type: {
             type: String,
-            enum: ["seat", "priority", "standing"],
+            enum: ["seat", "priority", "standing", "business", "economy"],
             default: "seat",
             required: true,
         },
