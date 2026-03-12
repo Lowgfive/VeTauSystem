@@ -65,7 +65,7 @@ export class ScheduleService {
     }
 
     // Xác định hướng và ga xuất phát ban đầu
-    let direction: "forward" | "backward" = train.direction;
+    let direction: "forward" | "backward" = train.direction as "forward" | "backward";
     const startOrder = direction === "forward" ? 1 : 15;
     const step = direction === "forward" ? 1 : -1;
 
@@ -161,7 +161,7 @@ export class ScheduleService {
     }
 
     // 2. Xác định ga kế tiếp dựa trên direction + station_order
-    let direction: "forward" | "backward" = train.direction;
+    let direction: "forward" | "backward" = train.direction as "forward" | "backward";
     let step = direction === "forward" ? 1 : -1;
 
     let nextStation = await Station.findOne({
