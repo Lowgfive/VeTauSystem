@@ -4,6 +4,7 @@ import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./middlewares/error.middleware";
 import { swaggerSpec } from "./config/swagger";
+import routerUser from "./routes/user.route";
 import routerAuth from "./routes/auth.route";
 import routerRoute from "./routes/route.route";
 import routerStation from "./routes/station.route";
@@ -68,6 +69,7 @@ app.use(
 );
 
 // API Routes (v1)
+app.use("/api/v1/users", routerUser);
 app.use("/api/v1/auth", routerAuth);
 app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
