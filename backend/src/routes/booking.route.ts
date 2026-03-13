@@ -5,11 +5,14 @@ import {
     getMyBookings,
     refundTicket,
     changeSchedule,
+    calculateFare,
 } from "../controllers/booking.controller";
 
 const router = express.Router();
 
-// All routes require login (existing authMiddleware)
+router.post("/calculate-fare", calculateFare);
+
+// All routes BELOW this line require login (existing authMiddleware)
 router.use(authMiddleware);
 
 // POST /api/v1/bookings/book
