@@ -16,7 +16,11 @@ import routerTicket from "./routes/ticket.route";
 import routerBooking from "./routes/booking.route";
 import routerSchedule from "./routes/schedule.route";
 import routerTemplate from "./routes/template.route";
+
+import routerLine from "./routes/line.route";
+
 import routerPayment from "./routes/payment.route";
+
 
 const app = express();
 
@@ -68,7 +72,7 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "Metro Hà Nội - API Docs",
+    customSiteTitle: "Hà Nội Railway - API Docs",
   })
 );
 
@@ -83,7 +87,11 @@ app.use("/api/v1/trains", routerTrain);
 app.use("/api/v1/tickets", routerTicket);
 app.use("/api/v1/bookings", routerBooking);
 app.use("/api/v1/templates", routerTemplate);
+
+app.use("/api/v1/lines", routerLine);
+
 app.use("/api/v1/payments", routerPayment);
+
 
 // 404 Fallback 
 app.use((_req, res) => {

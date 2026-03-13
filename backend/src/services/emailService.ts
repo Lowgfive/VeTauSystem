@@ -31,7 +31,7 @@ export const sendTicketEmail = async ({
         html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
         <h2 style="color: #1a73e8;">Xin chào Hành khách!</h2>
-        <p>Cảm ơn bạn đã đặt vé Metro Tuyến số 5 qua hệ thống VéTàu.</p>
+        <p>Cảm ơn bạn đã đặt vé qua hệ thống VéTàu.</p>
         <p><strong>Mã vé của bạn:</strong> <span style="font-size: 24px; color: #e53935; font-weight: bold;">${bookingCode}</span></p>
         <p>Vui lòng xem file vé đính kèm (PDF). Hãy sử dụng mã QR trên vé để check-in tại cổng soát vé nhà ga.</p>
         <hr/>

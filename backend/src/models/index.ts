@@ -7,7 +7,7 @@ import { SeatTemplate } from "./seattemplate.model";
 import { Schedule } from "./schedule.model";
 import { Route } from "./route.model";
 import { Station } from "./station.model";
-import { MetroLine } from "./metroline.model";
+import { Line } from "./line.model";
 import BookingModel from "./booking.model";
 import UserModel from "./user.model";
 
@@ -21,7 +21,7 @@ export {
     Schedule,
     Route,
     Station,
-    MetroLine,
+    Line,
     BookingModel,
     UserModel
 };

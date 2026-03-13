@@ -15,22 +15,22 @@ interface CarriageTemplate {
     priority_seats: number;
 }
 
-const METRO_4CAR_TEMPLATE: CarriageTemplate[] = [
+const TRAIN_4CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 4, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
-const METRO_6CAR_TEMPLATE: CarriageTemplate[] = [
+const TRAIN_6CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 6, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
-const METRO_8CAR_TEMPLATE: CarriageTemplate[] = [
+const TRAIN_8CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 8, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
 const TEMPLATE_MAP: Record<TrainType, CarriageTemplate[]> = {
-    "4-car": METRO_4CAR_TEMPLATE,
-    "6-car": METRO_6CAR_TEMPLATE,
-    "8-car": METRO_8CAR_TEMPLATE,
+    "4-car": TRAIN_4CAR_TEMPLATE,
+    "6-car": TRAIN_6CAR_TEMPLATE,
+    "8-car": TRAIN_8CAR_TEMPLATE,
 };
 
 interface CreateTrainInput {
@@ -201,7 +201,7 @@ export const deleteTrain = async (trainId: string) => {
     // Cũng soft delete tất cả toa của tàu này
     await Carriage.updateMany({ train_id: trainId }, { is_active: false });
 
-    return { message: "Đã xóa đoàn tàu metro và các toa liên quan" };
+    return { message: "Đã xóa đoàn tàu và các toa liên quan" };
 };
 
 export const getSeatsByCarriage = async (carriageId: string) => {
