@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MyBookingsPage } from "../components/MyBookingsPage";
-import { getMyBookings, cancelBooking } from "../services/booking.service";
+import { getMyBookings, cancelBooking, downloadTicket } from "../services/booking.service";
 import { Booking } from "../types";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -15,7 +15,7 @@ export default function ManageBookingPageWrapper() {
     try {
       setLoading(true);
       const res = await getMyBookings();
-      
+
       // Map backend response to frontend Booking type
       const formattedBookings: Booking[] = res.data.map((b: any) => {
         const schedule = b.schedule_id;
@@ -37,10 +37,10 @@ export default function ManageBookingPageWrapper() {
           paymentMethod: "credit-card",
           createdAt: b.createdAt,
           seats: seat ? [{
-            id: seat._id,
-            number: seat.seat_number,
-          }] : [],
-          
+            _id: seat._id,
+            seat_number: seat.seat_number,
+          } as any] : [],
+
           // Flattened details for UI
           trainNumber: train?.train_name || "N/A",
           route: {
@@ -80,6 +80,15 @@ export default function ManageBookingPageWrapper() {
       toast.error(error?.response?.data?.message || "Lỗi khi hủy vé");
     }
   };
+  const handleDownloadTicket = async (bookingCode: string) => {
+    try {
+      toast.info("Đang chuẩn bị file vé...");
+      await downloadTicket(bookingCode);
+      toast.success("Tải vé thành công");
+    } catch (error: any) {
+      toast.error("Lỗi khi tải vé. Vui lòng thử lại sau.");
+    }
+  };
 
   if (loading) {
     return (
@@ -98,6 +107,7 @@ export default function ManageBookingPageWrapper() {
         toast.info(`Chi tiết vé: ${booking.bookingCode}`);
       }}
       onCancelBooking={handleCancelBooking}
+      onDownload={handleDownloadTicket}
     />
   );
 }

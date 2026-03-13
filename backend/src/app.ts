@@ -1,9 +1,12 @@
 import express from "express";
+import "./models"; // Register all models
+
 import cors from "cors";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./middlewares/error.middleware";
 import { swaggerSpec } from "./config/swagger";
+import routerUser from "./routes/user.route";
 import routerAuth from "./routes/auth.route";
 import routerRoute from "./routes/route.route";
 import routerStation from "./routes/station.route";
@@ -12,6 +15,7 @@ import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
 import routerBooking from "./routes/booking.route";
 import routerSchedule from "./routes/schedule.route";
+import routerTemplate from "./routes/template.route";
 import routerPayment from "./routes/payment.route";
 
 const app = express();
@@ -69,14 +73,16 @@ app.use(
 );
 
 // API Routes (v1)
+app.use("/api/v1/users", routerUser);
 app.use("/api/v1/auth", routerAuth);
 app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
 app.use("/api/v1/schedules", routerSchedule);
-app.use("/api/trains", routerTrain);
-app.use("/api/tickets", routerTicket);
+app.use("/api/v1/trains", routerTrain);
+app.use("/api/v1/tickets", routerTicket);
 app.use("/api/v1/bookings", routerBooking);
+app.use("/api/v1/templates", routerTemplate);
 app.use("/api/v1/payments", routerPayment);
 
 // 404 Fallback 

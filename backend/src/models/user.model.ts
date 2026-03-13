@@ -7,6 +7,8 @@ export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
+    phone?: string;
+    cccd?: string;
     role: UserRole;
     createdAt: Date;
     updatedAt: Date;
@@ -36,6 +38,14 @@ const UserSchema = new Schema<IUser>(
             required: [true, "Mật khẩu là bắt buộc"],
             minlength: [6, "Mật khẩu tối thiểu 6 ký tự"],
             select: false,
+        },
+        phone: {
+            type: String,
+            trim: true,
+        },
+        cccd: {
+            type: String,
+            trim: true,
         },
         role: {
             type: String,
