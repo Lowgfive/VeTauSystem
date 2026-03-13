@@ -1,37 +1,32 @@
 import { Train } from "../models/train.model";
 import { Carriage } from "../models/carriage.model";
 import { Seat } from "../models/seat.model";
+import { TrainTemplate, CarriageTemplate as DBCarriageTemplate } from "../models";
 import { ITrain, TrainType } from "../types/train.type";
 import { SeatType, CarriageLayout } from "../types/carriage.type";
 
-// ─── Cấu hình mặc định các toa cho đoàn tàu Metro ──────────────────────────
-// Metro Line 5: mỗi toa giống nhau, có ghế ngồi thường + ghế ưu tiên
-
+// ─── Cấu hình mặc định (Fallback) ──────────────────────────
 interface CarriageTemplate {
-    seat_type: SeatType;          // Loại ghế chính của toa
-    count: number;                // Số lượng toa loại này
-    seats_per_carriage: number;   // Số ghế ngồi mỗi toa
-    standing_capacity: number;    // Sức chứa đứng mỗi toa
-    layout: CarriageLayout;       // Bố trí rows x cols
-    priority_seats: number;       // Số ghế ưu tiên (nằm trong tổng seats)
+    seat_type: SeatType;
+    count: number;
+    seats_per_carriage: number;
+    standing_capacity: number;
+    layout: CarriageLayout;
+    priority_seats: number;
 }
 
-// Template cho đoàn tàu metro 4 toa (mặc định)
 const METRO_4CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 4, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
-// Template cho đoàn tàu metro 6 toa
 const METRO_6CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 6, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
-// Template cho đoàn tàu metro 8 toa
 const METRO_8CAR_TEMPLATE: CarriageTemplate[] = [
     { seat_type: "seat", count: 8, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
 ];
 
-// Map loại tàu → template tương ứng
 const TEMPLATE_MAP: Record<TrainType, CarriageTemplate[]> = {
     "4-car": METRO_4CAR_TEMPLATE,
     "6-car": METRO_6CAR_TEMPLATE,
@@ -43,13 +38,44 @@ interface CreateTrainInput {
     train_code: string;
     train_type?: TrainType;
     line_id: string;
+    template_id?: string; // Thêm template_id từ DB
     amenities?: string[];
-    carriage_templates?: CarriageTemplate[];
 }
 
 export const createTrain = async (input: CreateTrainInput) => {
-    const trainType: TrainType = input.train_type || "4-car";
-    const templates = input.carriage_templates || TEMPLATE_MAP[trainType];
+    let templates: CarriageTemplate[] = [];
+
+    if (input.template_id) {
+        // Lấy template từ Database
+        const dbTemplate = await TrainTemplate.findById(input.template_id).populate("carriage_templates");
+        if (!dbTemplate) throw new Error("Không tìm thấy mẫu tàu trong hệ thống");
+
+        // Gom nhóm các toa cùng loại để dùng chung logic generate
+        const carriageTemplates = dbTemplate.carriage_templates as any[];
+        const counts: Record<string, number> = {};
+        const uniqueTemplates: any[] = [];
+
+        carriageTemplates.forEach(t => {
+            if (!counts[t._id.toString()]) {
+                counts[t._id.toString()] = 1;
+                uniqueTemplates.push(t);
+            } else {
+                counts[t._id.toString()]++;
+            }
+        });
+
+        templates = uniqueTemplates.map(t => ({
+            seat_type: t.seat_type,
+            count: counts[t._id.toString()],
+            seats_per_carriage: t.total_seats,
+            standing_capacity: t.standing_capacity,
+            layout: t.layout,
+            priority_seats: t.seat_type === "priority" ? t.total_seats : (t.seat_type === "seat" ? 8 : 0)
+        }));
+    } else {
+        const trainType: TrainType = input.train_type || "4-car";
+        templates = TEMPLATE_MAP[trainType];
+    }
 
     // Tính tổng số toa và sức chứa
     const totalCarriages = templates.reduce((sum, t) => sum + t.count, 0);
@@ -62,8 +88,9 @@ export const createTrain = async (input: CreateTrainInput) => {
     const train = await Train.create({
         train_name: input.train_name,
         train_code: input.train_code,
-        train_type: trainType,
+        train_type: input.train_type || "manual",
         line_id: input.line_id,
+        template_id: input.template_id,
         total_carriages: totalCarriages,
         capacity: totalCapacity,
         max_speed: 120,
@@ -109,24 +136,21 @@ const generateCarriagesAndSeats = async (
     }
 };
 
-// Tạo ghế theo lưới rows x cols cho toa Metro
-// Ghế ưu tiên (priority) được đặt ở 2 hàng đầu tiên
 const generateSeatsForCarriage = async (
     carriageId: string,
     carriageNumber: number,
     template: CarriageTemplate
 ) => {
     const { rows, cols } = template.layout;
-    const priorityRows = Math.ceil(template.priority_seats / cols); // Số hàng ghế ưu tiên
+    const priorityRows = Math.ceil(template.priority_seats / cols);
     const seats = [];
 
     for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-            const colLetter = String.fromCharCode(65 + col); // 0→A, 1→B...
+            const colLetter = String.fromCharCode(65 + col);
             const seatNumber = `${carriageNumber}${colLetter}${row + 1}`;
 
-            // Ghế ở hàng đầu tiên → priority, còn lại → seat
-            const seatType: SeatType = row < priorityRows ? "priority" : "seat";
+            const seatType: SeatType = row < priorityRows ? "priority" : template.seat_type;
 
             seats.push({
                 carriage_id: carriageId,
