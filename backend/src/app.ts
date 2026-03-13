@@ -10,6 +10,7 @@ import routerStation from "./routes/station.route";
 import routerSearch from "./routes/search.route";
 import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
+import routerBooking from "./routes/booking.route";
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use("/api/v1/stations", routerStation);
 app.use("/api/v1/schedules", routerSearch);
 app.use("/api/trains", routerTrain);
 app.use("/api/tickets", routerTicket);
+app.use("/api/v1/bookings", routerBooking);
 
 
 // 404 Fallback 
