@@ -5,13 +5,57 @@ import BookingModel from "../models/booking.model";
 import { Seat } from "../models/seat.model";
 import mongoose from "mongoose";
 
-// ─── Helper: generate a simple booking code ───────────────────────────────────
 
 const generateBookingCode = (): string => {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `BK-${timestamp}-${random}`;
 };
+
+const DISCOUNT_RATES = {
+    adult: 0,
+    child: 0.30,   
+    senior: 0.20,   
+    disabled: 0.50,  
+};
+const TAX_RATE = 0.10; 
+
+export const calculateFareDetails = (basePrice: number, passengerType: "adult" | "child" | "senior" | "disabled" = "adult") => {
+    const discountRate = DISCOUNT_RATES[passengerType] || 0;
+    const discountAmount = basePrice * discountRate;
+    const afterDiscount = basePrice - discountAmount;
+    const taxAmount = afterDiscount * TAX_RATE;
+    const totalFare = afterDiscount + taxAmount;
+
+    return {
+        base_price: basePrice,
+        discount_amount: discountAmount,
+        tax_amount: taxAmount,
+        total_fare: totalFare,
+        passenger_type: passengerType
+    };
+};
+
+export const calculateFare = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { seat_id, passenger_type } = req.body;
+
+    if (!seat_id) {
+        return res.status(400).json({ success: false, message: "Thiếu seat_id" });
+    }
+
+    const seat = await Seat.findById(seat_id);
+    if (!seat) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy ghế" });
+    }
+
+    const fareDetails = calculateFareDetails(seat.price, passenger_type || "adult");
+
+    res.status(200).json({
+        success: true,
+        message: "Tính giá vé thành công",
+        data: fareDetails,
+    });
+});
 
 // ─── Book Ticket ──────────────────────────────────────────────────────────────
 // POST /api/v1/bookings/book
@@ -33,14 +77,20 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
     if (seat.status === "booked") {
         return res.status(409).json({ success: false, message: "Ghế đã được đặt" });
     }
+    
+    if (seat.schedule_id.toString() !== schedule_id) {
+        return res.status(400).json({ success: false, message: "Ghế không thuộc lịch trình này" });
+    }
 
-    // Create booking
+    const passenger_type = req.body.passenger_type || "adult";
+    const fareDetails = calculateFareDetails(seat.price, passenger_type);
+
     const booking = await BookingModel.create({
         user_id: new mongoose.Types.ObjectId(userId),
         schedule_id: new mongoose.Types.ObjectId(schedule_id),
         seat_id: seat._id,
         booking_code: generateBookingCode(),
-        price: seat.price,
+        price: fareDetails.total_fare, // Save the total fare including tax and discount
     });
 
     // Mark seat as booked
@@ -66,7 +116,7 @@ export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response
             path: "schedule_id",
             populate: [
                 { path: "train_id" },
-                { 
+                {
                     path: "route_id",
                     populate: [
                         { path: "departure_station_id" },

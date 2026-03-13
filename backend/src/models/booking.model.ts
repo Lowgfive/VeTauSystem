@@ -6,14 +6,13 @@ export interface IBooking extends Document {
     user_id: mongoose.Types.ObjectId;
     schedule_id: mongoose.Types.ObjectId;
     seat_id: mongoose.Types.ObjectId;
-    status: "confirmed" | "refunded" | "changed";
+    status: "pending" | "confirmed" | "refunded" | "changed" | "paid";
     booking_code: string;
     price: number;
     createdAt: Date;
     updatedAt: Date;
 }
 
-// ─── Booking Schema ────────────────────────────────────────────────────────────
 
 const BookingSchema = new Schema<IBooking>(
     {
@@ -34,8 +33,8 @@ const BookingSchema = new Schema<IBooking>(
         },
         status: {
             type: String,
-            enum: ["confirmed", "refunded", "changed"],
-            default: "confirmed",
+            enum: ["pending", "confirmed", "refunded", "changed", "paid"],
+            default: "pending",
         },
         booking_code: {
             type: String,
