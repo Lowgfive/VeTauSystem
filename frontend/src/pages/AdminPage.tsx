@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
-import { MetrolineManagement } from '../components/admin/MetrolineManagement';
+import { LineManagement } from '../components/admin/LineManagement';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports'>('trains');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'reports'>('trains');
 
     const handleLogout = () => {
         // Implement logout logic
@@ -14,8 +14,8 @@ export default function AdminPage() {
         switch (activeTab) {
             case 'trains':
                 return <TrainManagement />;
-            case 'metrolines':
-                return <MetrolineManagement />;
+            case 'lines':
+                return <LineManagement />;
             case 'dashboard':
             case 'tickets':
             case 'reports':

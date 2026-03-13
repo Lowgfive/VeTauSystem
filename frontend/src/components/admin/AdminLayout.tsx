@@ -5,8 +5,8 @@ import { useState } from 'react';
 
 interface AdminLayoutProps {
   children: ReactNode;
-  activeTab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports';
-  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports') => void;
+  activeTab: 'dashboard' | 'tickets' | 'trains' | 'lines' | 'reports';
+  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'lines' | 'reports') => void;
   onLogout: () => void;
 }
 
@@ -16,8 +16,8 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tickets' as const, label: 'Quản lý vé', icon: Ticket },
-    { id: 'metrolines' as const, label: 'Tuyến & Ga', icon: MapPin },
-    { id: 'trains' as const, label: 'Đoàn tàu Metro', icon: Train },
+    { id: 'lines' as const, label: 'Tuyến & Ga', icon: MapPin },
+    { id: 'trains' as const, label: 'Đoàn tàu', icon: Train },
     { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },
   ];
 

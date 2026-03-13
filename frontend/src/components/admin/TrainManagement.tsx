@@ -7,7 +7,7 @@ import { Label } from '../ui/label';
 import { Search, Plus, Edit, Trash2, Train as TrainIcon, Calendar, MapPin, Clock, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Train, MetroLine, Carriage, Seat } from '../../types';
+import { Train, Line, Carriage, Seat } from '../../types';
 import { SeatMap } from '../SeatMap';
 
 // Temporarily keep Schedule mock until Phase 3 (Schedule Management)
@@ -34,7 +34,7 @@ export function TrainManagement() {
   const [seatsForMap, setSeatsForMap] = useState<Record<string, Seat[]>>({});
 
   const [trains, setTrains] = useState<Train[]>([]);
-  const [lines, setLines] = useState<MetroLine[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -54,7 +54,7 @@ export function TrainManagement() {
       setIsLoading(true);
       const [trainsRes, linesRes, templatesRes] = await Promise.all([
         axios.get(`${API_URL}/trains`),
-        axios.get(`${API_URL}/metrolines`),
+        axios.get(`${API_URL}/lines`),
         axios.get(`${API_URL}/templates/trains`)
       ]);
       setTrains(trainsRes.data.data);
@@ -276,7 +276,7 @@ export function TrainManagement() {
                   <p className="text-sm text-muted-foreground mb-1">Tuyến đường:</p>
                   <div className="flex flex-wrap gap-1">
                     <Badge variant="secondary" className="text-xs">
-                      {typeof train.line_id === 'object' ? (train.line_id as MetroLine).line_name : 'Line 5'}
+                      {typeof train.line_id === 'object' ? (train.line_id as Line).line_name : 'N/A'}
                     </Badge>
                   </div>
                 </div>
@@ -329,7 +329,6 @@ export function TrainManagement() {
                   <th className="text-left py-3 px-4 font-semibold text-sm text-gray-700">Giờ khởi hành</th>
                   <th className="text-left py-3 px-4 font-semibold text-sm text-gray-700">Giờ đến</th>
                   <th className="text-left py-3 px-4 font-semibold text-sm text-gray-700">Thời gian</th>
-                  <th className="text-left py-3 px-4 font-semibold text-sm text-gray-700">Tần suất</th>
                   <th className="text-left py-3 px-4 font-semibold text-sm text-gray-700">Trạng thái</th>
                   <th className="text-center py-3 px-4 font-semibold text-sm text-gray-700">Thao tác</th>
                 </tr>
@@ -357,7 +356,6 @@ export function TrainManagement() {
                     </td>
                     <td className="py-3 px-4 text-sm">{schedule.arrivalTime}</td>
                     <td className="py-3 px-4 text-sm">{schedule.duration}</td>
-                    <td className="py-3 px-4 text-sm">{schedule.frequency}</td>
                     <td className="py-3 px-4">{getStatusBadge(schedule.status)}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-2">

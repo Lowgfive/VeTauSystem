@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import * as trainService from "../services/train.service";
+import { Train } from "../models/train.model";
 
 // Tạo tàu mới (kèm auto-generate toa + ghế)
 export const createTrain = async (req: Request, res: Response, next: NextFunction) => {
@@ -36,7 +38,11 @@ export const getAllTrains = async (_req: Request, res: Response, next: NextFunct
 // Lấy chi tiết 1 tàu (kèm danh sách toa)
 export const getTrainById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await trainService.getTrainById(req.params.id as string);
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
+        }
+        const result = await trainService.getTrainById(id);
         if (!result) {
             return res.status(404).json({ success: false, message: "Không tìm thấy tàu" });
         }
@@ -49,7 +55,11 @@ export const getTrainById = async (req: Request, res: Response, next: NextFuncti
 // Cập nhật thông tin tàu
 export const updateTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const train = await trainService.updateTrain(req.params.id as string, req.body);
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
+        }
+        const train = await trainService.updateTrain(id, req.body);
         if (!train) {
             return res.status(404).json({ success: false, message: "Không tìm thấy tàu" });
         }
@@ -66,7 +76,11 @@ export const updateTrain = async (req: Request, res: Response, next: NextFunctio
 // Xóa tàu (soft delete)
 export const deleteTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await trainService.deleteTrain(req.params.id as string);
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
+        }
+        const result = await trainService.deleteTrain(id);
         res.status(200).json({ success: true, ...result });
     } catch (error) {
         next(error);
@@ -87,7 +101,18 @@ export const getSeatsByCarriage = async (req: Request, res: Response, next: Next
 
 export const getSeatMap = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await trainService.getSeatsByTrain(req.params.id as string);
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
+        }
+
+        // Kiểm tra tàu có tồn tại không trước khi lấy SeatMap
+        const train = await Train.findById(id);
+        if (!train) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy tàu với ID này" });
+        }
+
+        const result = await trainService.getSeatsByTrain(id);
         res.status(200).json({ success: true, data: result });
     } catch (error) {
         next(error);

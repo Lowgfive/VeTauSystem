@@ -119,12 +119,12 @@ export function SeatMap({
         </TabsList>
 
         {carriages.map(carriage => {
-          // Tự động suy ra số lưới cols dựa trên loại tàu Metro (thường là 4 hoặc cấu trúc 2-cửa-2)
+          // Tự động suy ra số lưới cols dựa trên loại tàu (thường là 4 hoặc cấu trúc 2-cửa-2)
           return (
             <TabsContent key={carriage._id.toString()} value={carriage._id.toString()} className="mt-4">
               <Card className="p-6">
                 <div className="mb-4">
-                  <h3 className="font-semibold mb-1">Toa {carriage.carriage_number} - Tuyến Metro Số 5</h3>
+                  <h3 className="font-semibold mb-1">Toa {carriage.carriage_number}</h3>
                   <p className="text-sm text-muted-foreground">Sơ đồ có các khu vực ghế ưu tiên ở hai đầu. Lối đi nằm ở giữa.</p>
                 </div>
 
@@ -140,7 +140,7 @@ export function SeatMap({
                   <div
                     className="grid gap-2 mx-auto max-w-fit"
                     style={{
-                      // Metro Line 5 default block is usually 4/6 blocks layout. Hardcoded 4 cho UI Sơ đồ
+                      // Default block is usually 4/6 blocks layout. Hardcoded 4 for UI
                       gridTemplateColumns: `repeat(4, minmax(0, 1fr))`
                     }}
                   >

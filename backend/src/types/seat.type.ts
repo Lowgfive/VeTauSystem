@@ -14,11 +14,11 @@ export interface SeatPosition {
     col: number;  // Cột
 }
 
-// Interface chính cho Seat (Ghế trên toa Metro)
+// Interface chính cho Seat (Ghế trên toa tàu)
 export interface ISeat extends Document {
     carriage_id: Types.ObjectId;  // Toa xe chứa ghế này
     seat_number: string;          // Mã ghế hiển thị (VD: "1A3")
-    seat_type: SeatType;          // Loại ghế: seat / priority / standing
+    seat_type: SeatType;          // Loại ghế: seat / priority 
     status: SeatStatus;           // Trạng thái hiện tại của ghế
     position: SeatPosition;       // Tọa độ ghế trên sơ đồ
 }
