@@ -117,7 +117,7 @@ export function TrainManagement() {
     return status === 'active' ? (
       <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>
     ) : (
-      <Badge className="bg-red-100 text-red-800">Đã hủy</Badge>
+      <Badge className="bg-gray-100 text-gray-800">Ngừng hoạt động</Badge>
     );
   };
 
@@ -167,8 +167,8 @@ export function TrainManagement() {
 
   const trainStats = [
     { label: 'Tổng số tàu', value: trains.length, color: 'bg-blue-500' },
-    { label: 'Đang hoạt động', value: trains.filter(t => t.is_active).length, color: 'bg-green-500' },
-    { label: 'Ngừng hoạt động', value: trains.filter(t => !t.is_active).length, color: 'bg-gray-500' },
+    { label: 'Đang hoạt động', value: trains.filter(t => t.status === 'active' || t.is_active).length, color: 'bg-green-500' },
+    { label: 'Ngừng hoạt động', value: trains.filter(t => t.status === 'inactive' || (!t.is_active && t.status === undefined)).length, color: 'bg-gray-500' },
     { label: 'Tổng ghế', value: trains.reduce((sum, t) => sum + (t.capacity || 0), 0), color: 'bg-purple-500' },
   ];
 
@@ -256,7 +256,7 @@ export function TrainManagement() {
                     <p className="text-sm text-muted-foreground">{train.train_name}</p>
                   </div>
                 </div>
-                {getStatusBadge(train.is_active)}
+                {getStatusBadge(train.status || train.is_active)}
               </div>
 
               <div className="space-y-3 mb-4">
