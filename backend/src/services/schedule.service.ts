@@ -38,81 +38,10 @@ function addMinutes(date: Date, time: string, add: number) {
 }
 
 export class ScheduleService {
-<<<<<<< HEAD
-  /**
-   * Tạo schedule đầu tiên cho 1 tàu (nếu chưa có),
-   * lấy ngày hôm nay làm ngày chạy.
-   */
-  static async createFirstScheduleForTrain(trainId: string) {
-    const train = await Train.findById(trainId).select("direction");
-    if (!train) {
-      throw new Error("Train not found");
-    }
-
-    // Xác định hướng và ga xuất phát ban đầu
-    let direction: "forward" | "backward" = train.direction as "forward" | "backward";
-    const startOrder = direction === "forward" ? 1 : 15;
-    const step = direction === "forward" ? 1 : -1;
-
-    const departureStation = await Station.findOne({
-      station_order: startOrder,
-    });
-    const arrivalStation = await Station.findOne({
-      station_order: startOrder + step,
-    });
-
-    if (!departureStation || !arrivalStation) {
-      throw new Error("No stations found for initial schedule");
-    }
-
-    const route = await Route.findOne({
-      departure_station_id: departureStation._id,
-      arrival_station_id: arrivalStation._id,
-    });
-
-    if (!route) {
-      throw new Error("No route found for initial schedule");
-    }
-
-    // Ngày hôm nay (chỉ lấy phần date, không lấy giờ)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Giờ xuất phát mặc định trong ngày (có thể chỉnh nếu cần)
-    const defaultDepartureTime = "08:00";
-    const routeDurationMinutes = (route.hour ?? 0) * 60;
-
-    const { date, time: arrival_time } = addMinutesToDate(
-      today,
-      parseTimeToMinutes(defaultDepartureTime),
-      routeDurationMinutes
-    );
-
-    const newSchedule = await Schedule.create({
-      route_id: route._id,
-      train_id: new mongoose.Types.ObjectId(trainId),
-      date,
-      departure_time: defaultDepartureTime,
-      arrival_time,
-    });
-
-    return newSchedule;
-  }
-
-  /**
-   * Tự động sinh Schedule tiếp theo cho 1 tàu dựa trên:
-   * - Schedule gần nhất (theo date + arrival_time)
-   * - Ga đến hiện tại (arrival_station_id của Route)
-   * - Route tiếp theo bắt đầu từ ga đó
-   * - Thời gian quay đầu + thời lượng tuyến (route.hour)
-   */
-  static async autoGenerateNextSchedule(trainId: string) {
-=======
   static async generateSchedules(
     trainId: string,
     maxDays: number = 30
   ) {
->>>>>>> fd7a1d3d16e7d8a076b09ec5986687e76735f8cc
     if (!mongoose.Types.ObjectId.isValid(trainId)) {
       throw new Error("Invalid train id");
     }
@@ -154,35 +83,9 @@ export class ScheduleService {
         secondStation = stations[stations.length - 2];
       }
 
-<<<<<<< HEAD
-    const arrivalStation: any = route.arrival_station_id;
-    if (
-      !arrivalStation ||
-      typeof arrivalStation.station_order !== "number"
-    ) {
-      throw new Error("Arrival station is invalid");
-    }
-
-    // 2. Xác định ga kế tiếp dựa trên direction + station_order
-    let direction: "forward" | "backward" = train.direction as "forward" | "backward";
-    let step = direction === "forward" ? 1 : -1;
-
-    let nextStation = await Station.findOne({
-      station_order: arrivalStation.station_order + step,
-    });
-
-    // Nếu đang ở cuối tuyến, đảo chiều và tìm lại
-    if (!nextStation) {
-      direction = direction === "forward" ? "backward" : "forward";
-      step = -step;
-
-      nextStation = await Station.findOne({
-        station_order: arrivalStation.station_order + step,
-=======
       const route = await Route.findOne({
         departure_station_id: firstStation._id,
         arrival_station_id: secondStation._id,
->>>>>>> fd7a1d3d16e7d8a076b09ec5986687e76735f8cc
       });
 
       if (!route) {

@@ -42,8 +42,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const GuestOnly = ({ children }: { children: React.ReactNode }) => {
-    const { isAuthenticated } = useAppSelector((s) => s.auth);
-    return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+    const { isAuthenticated, user } = useAppSelector((s) => s.auth);
+    if (isAuthenticated) {
+        return user?.role === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />;
+    }
+    return <>{children}</>;
 };
 
 // ─── App Router ──────────────────────────────────────────────────────────────
