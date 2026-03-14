@@ -26,11 +26,11 @@ export class SearchService {
 
     // 1. tìm ga
     const depStation = await Station.findOne({
-      station_name: new RegExp(`^${departureStation}$`, "i")
+      station_name: new RegExp(`^(Ga\\s+)?${departureStation}$`, "i")
     }).lean();
 
     const arrStation = await Station.findOne({
-      station_name: new RegExp(`^${arrivalStation}$`, "i")
+      station_name: new RegExp(`^(Ga\\s+)?${arrivalStation}$`, "i")
     }).lean();
 
     if (!depStation || !arrStation) {
@@ -94,7 +94,13 @@ export class SearchService {
     const schedules = await Schedule.find({
       route_id: { $in: routeIds },
       date: { $gte: dayStart, $lte: dayEnd }
-    }).lean();
+    })
+    .populate({
+      path: 'train_id',
+      populate: { path: 'line_id' }
+    })
+    .populate('route_id')
+    .lean();
 
     if (schedules.length === 0) {
       return { trips: [], message: "Không có chuyến tàu trong ngày này" };
@@ -103,9 +109,9 @@ export class SearchService {
     // 7. group theo train
     const trainMap = new Map<string, any[]>();
 
-    for (const s of schedules) {
-
-      const trainId = s.train_id.toString();
+    for (const s of (schedules as any[])) {
+      const trainId = s.train_id?._id?.toString() || s.train_id?.toString();
+      if (!trainId) continue;
 
       if (!trainMap.has(trainId)) {
         trainMap.set(trainId, []);
@@ -114,11 +120,10 @@ export class SearchService {
       trainMap.get(trainId)!.push(s);
     }
 
-    const results: TrainResult[] = [];
+    const results: any[] = [];
 
     // 8. build kết quả
     for (const [trainId, trainSchedules] of trainMap.entries()) {
-
       trainSchedules.sort((a, b) =>
         a.departure_time.localeCompare(b.departure_time)
       );
@@ -129,22 +134,27 @@ export class SearchService {
       let totalDistance = 0;
       let totalDuration = 0;
 
-      for (const r of routes) {
-        totalDistance += r.distance;
-        totalDuration += r.hour;
+      for (const s of trainSchedules) {
+        if (s.route_id) {
+          totalDistance += s.route_id.distance || 0;
+          totalDuration += s.route_id.hour || 0;
+        }
       }
 
       const price = totalDistance * 1000;
 
       results.push({
+        _id: first._id,
         train_id: trainId,
+        train: first.train_id, // Full train object
         departure_station: depStation.station_name,
         arrival_station: arrStation.station_name,
         departure_time: first.departure_time,
         arrival_time: last.arrival_time,
         distance: totalDistance,
-        duration: totalDuration,
-        price
+        duration: `${totalDuration}h 00m`,
+        price,
+        availableSeats: first.train_id?.capacity || 100 // Fallback
       });
     }
 
