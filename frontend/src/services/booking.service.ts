@@ -48,3 +48,19 @@ export async function changeBookingSchedule(bookingId: string, payload: { new_sc
   return res.data;
 }
 
+
+export async function downloadTicket(bookingCode: string) {
+  const res = await apiClient.get(`/tickets/download/${bookingCode}`, {
+    responseType: 'blob'
+  });
+
+  // Create a link and trigger download
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Ticket-${bookingCode}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

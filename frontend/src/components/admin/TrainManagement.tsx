@@ -37,29 +37,36 @@ export function TrainManagement() {
   const [lines, setLines] = useState<MetroLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Form State for Adding Train
   const [formData, setFormData] = useState({
     train_code: '',
     train_name: '',
-    train_type: '6-car',
+    template_id: '',
     line_id: ''
   });
 
+  const [trainTemplates, setTrainTemplates] = useState<any[]>([]);
+
   // API Base URL
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [trainsRes, linesRes] = await Promise.all([
+      const [trainsRes, linesRes, templatesRes] = await Promise.all([
         axios.get(`${API_URL}/trains`),
-        axios.get(`${API_URL}/metrolines`)
+        axios.get(`${API_URL}/metrolines`),
+        axios.get(`${API_URL}/templates/trains`)
       ]);
       setTrains(trainsRes.data.data);
       setLines(linesRes.data.data);
+      setTrainTemplates(templatesRes.data.data);
 
       if (linesRes.data.data.length > 0) {
-        setFormData(prev => ({ ...prev, line_id: linesRes.data.data[0]._id }));
+        setFormData(prev => ({
+          ...prev,
+          line_id: linesRes.data.data[0]._id,
+          template_id: templatesRes.data.data[0]?._id || ''
+        }));
       }
     } catch (error) {
       console.error('Lỗi khi fetch data:', error);
@@ -116,8 +123,8 @@ export function TrainManagement() {
 
   const handleAddTrain = async () => {
     try {
-      if (!formData.train_code || !formData.train_name || !formData.line_id) {
-        toast.error('Vui lòng nhập đầy đủ thông tin');
+      if (!formData.train_code || !formData.train_name || !formData.line_id || !formData.template_id) {
+        toast.error('Vui lòng nhập đầy đủ thông tin (bao gồm mã mẫu tàu)');
         return;
       }
       await axios.post(`${API_URL}/trains`, formData);
@@ -412,15 +419,15 @@ export function TrainManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Kích thước tàu</Label>
+                    <Label>Mẫu tàu (Template)</Label>
                     <select
                       className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.train_type}
-                      onChange={(e: any) => setFormData({ ...formData, train_type: e.target.value })}
+                      value={formData.template_id}
+                      onChange={(e: any) => setFormData({ ...formData, template_id: e.target.value })}
                     >
-                      <option value="4-car">4 toa</option>
-                      <option value="6-car">6 toa</option>
-                      <option value="8-car">8 toa</option>
+                      {trainTemplates.map((tpl: any) => (
+                        <option key={tpl._id} value={tpl._id}>{tpl.template_name}</option>
+                      ))}
                     </select>
                   </div>
 

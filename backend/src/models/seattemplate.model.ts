@@ -1,48 +1,23 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
+import { SeatType } from "../types/carriage.type";
 
-export interface ISeat {
-  schedule_id: mongoose.Types.ObjectId;
-
-  carriage_id: mongoose.Types.ObjectId;
-
+export interface ISeatTemplate extends Document {
   seat_number: string;
-
-  status: "available" | "booked";
-
-  price: number;
+  type: SeatType;
+  is_available: boolean;
 }
 
-const seatSchema = new Schema<ISeat>(
+const seatTemplateSchema = new Schema<ISeatTemplate>(
   {
-    schedule_id: {
-      type: Schema.Types.ObjectId,
-      ref: "Schedule",
-      required: true
-    },
-
-    carriage_id: {
-      type: Schema.Types.ObjectId,
-      ref: "Carriage",
-      required: true
-    },
-
-    seat_number: {
+    seat_number: { type: String, required: true },
+    type: {
       type: String,
-      required: true
+      enum: ["seat", "priority", "standing", "business", "economy"],
+      default: "seat"
     },
-
-    status: {
-      type: String,
-      enum: ["available", "booked"],
-      default: "available"
-    },
-
-    price: {
-      type: Number,
-      required: true
-    }
+    is_available: { type: Boolean, default: true }
   },
   { timestamps: true }
 );
 
-export const Seat = mongoose.model<ISeat>("Seat", seatSchema);
+export const SeatTemplate = mongoose.model<ISeatTemplate>("SeatTemplate", seatTemplateSchema);

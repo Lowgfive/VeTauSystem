@@ -30,4 +30,27 @@ export const verifyAccessToken = (token: string): AuthTokenPayload => {
   return jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
 };
 
+// ─── Reset Password Tokens ────────────────────────────────────────────────────
 
+export const signResetPasswordToken = (userId: string) => {
+    if (!JWT_SECRET) {
+        throw new Error("JWT_SECRET is not configured");
+    }
+
+    // Reset password token is valid for 15 minutes
+    return jwt.sign({ userId, purpose: "reset_password" }, JWT_SECRET, {
+        expiresIn: "15m",
+    });
+};
+
+export const verifyResetPasswordToken = (token: string): { userId: string } => {
+    if (!JWT_SECRET) {
+        throw new Error("JWT_SECRET is not configured");
+    }
+
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; purpose: string };
+    if (payload.purpose !== "reset_password") {
+        throw new Error("Invalid token purpose");
+    }
+    return payload;
+};

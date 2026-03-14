@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { 
-  Train, ArrowLeft, Search, Filter, Calendar, MapPin, 
+import {
+  Train, ArrowLeft, Search, Filter, Calendar, MapPin,
   Clock, Ticket, ChevronRight, Download, X, AlertCircle,
   CheckCircle, XCircle, Package
 } from 'lucide-react';
@@ -17,13 +17,15 @@ interface MyBookingsPageProps {
   onBack: () => void;
   onViewDetails: (booking: Booking) => void;
   onCancelBooking: (bookingId: string) => void;
+  onDownload?: (bookingCode: string) => void;
 }
 
-export function MyBookingsPage({ 
-  bookings, 
-  onBack, 
+export function MyBookingsPage({
+  bookings,
+  onBack,
   onViewDetails,
-  onCancelBooking 
+  onCancelBooking,
+  onDownload
 }: MyBookingsPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled' | 'completed'>('all');
@@ -40,7 +42,7 @@ export function MyBookingsPage({
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(b => 
+      filtered = filtered.filter(b =>
         b.bookingCode.toLowerCase().includes(query) ||
         b.trainNumber.toLowerCase().includes(query) ||
         b.route.origin.toLowerCase().includes(query) ||
@@ -49,7 +51,7 @@ export function MyBookingsPage({
     }
 
     // Sort by date (newest first)
-    return filtered.sort((a, b) => 
+    return filtered.sort((a, b) =>
       new Date(b.departureDateTime).getTime() - new Date(a.departureDateTime).getTime()
     );
   }, [bookings, statusFilter, searchQuery]);
@@ -148,7 +150,7 @@ export function MyBookingsPage({
             </div>
 
             {/* Status Filter Tabs */}
-            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)} className="w-full">
+            <Tabs value={statusFilter} onValueChange={(v: string) => setStatusFilter(v as any)} className="w-full">
               <TabsList className="grid grid-cols-4 w-full h-auto p-1 bg-gray-100">
                 <TabsTrigger value="all" className="data-[state=active]:bg-white">
                   Tất cả
@@ -198,7 +200,7 @@ export function MyBookingsPage({
                 {searchQuery ? 'Không tìm thấy vé' : 'Chưa có vé nào'}
               </h3>
               <p className="text-gray-600 mb-6">
-                {searchQuery 
+                {searchQuery
                   ? 'Thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc'
                   : 'Bạn chưa có vé nào. Hãy đặt vé để bắt đầu hành trình!'
                 }
@@ -224,7 +226,7 @@ export function MyBookingsPage({
               const canCancel = booking.status === 'confirmed';
 
               return (
-                <Card 
+                <Card
                   key={booking.bookingCode}
                   className="overflow-hidden hover:shadow-lg transition-all duration-300 border-0 shadow-md"
                 >
@@ -301,8 +303,8 @@ export function MyBookingsPage({
                       <div className="text-xs text-gray-600 mb-2">Ghế đã chọn</div>
                       <div className="flex flex-wrap gap-2">
                         {booking.seats.map((seat) => (
-                          <Badge key={seat.id} variant="secondary" className="font-mono">
-                            {seat.number}
+                          <Badge key={seat._id} variant="secondary" className="font-mono">
+                            {seat.seat_number}
                           </Badge>
                         ))}
                       </div>
@@ -318,7 +320,11 @@ export function MyBookingsPage({
                         <Ticket className="w-4 h-4 mr-2" />
                         Xem chi tiết
                       </Button>
-                      <Button variant="outline" className="flex-1">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => onDownload && onDownload(booking.bookingCode)}
+                      >
                         <Download className="w-4 h-4 mr-2" />
                         Tải vé
                       </Button>

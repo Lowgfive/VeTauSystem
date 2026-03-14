@@ -1,8 +1,10 @@
 import bcrypt from "bcrypt";
 import UserModel from "../models/user.model";
 import { signAccessToken } from "../utils/jwt";
-import type { RegisterInput, LoginInput } from "../schemas/auth.schema";
+import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput } from "../schemas/auth.schema";
 import type { UserResponse, LoginResponse, RegisterResponse } from "../types/auth.type";
+import { sendResetPasswordEmail, sendPasswordChangedEmail } from "./emailService";
+import { signResetPasswordToken, verifyResetPasswordToken } from "../utils/jwt";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -82,4 +84,57 @@ export const loginService = async (
         token,
         user: toUserResponse(user),
     };
+};
+
+// ─── Forgot Password ──────────────────────────────────────────────────────────
+
+export const forgotPasswordService = async (data: ForgotPasswordInput, clientUrl: string): Promise<void> => {
+    const { email } = data;
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+        // To prevent email enumeration, we do not throw an error here.
+        // We just return, and the controller will send a generic success message.
+        return;
+    }
+
+    const resetToken = signResetPasswordToken((user._id as unknown as string).toString());
+
+    await sendResetPasswordEmail({
+        to: user.email,
+        resetToken,
+        clientUrl,
+    });
+};
+
+// ─── Reset Password ───────────────────────────────────────────────────────────
+
+export const resetPasswordService = async (data: ResetPasswordInput, clientUrl: string): Promise<void> => {
+    const { token, newPassword } = data;
+
+    let payload;
+    try {
+        payload = verifyResetPasswordToken(token);
+    } catch (err) {
+        const error = new Error("Token không hợp lệ hoặc đã hết hạn") as Error & { statusCode: number };
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const user = await UserModel.findById(payload.userId);
+    if (!user) {
+        const error = new Error("Không tìm thấy người dùng") as Error & { statusCode: number };
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.password = hashedPassword;
+    await user.save();
+
+    await sendPasswordChangedEmail({
+        to: user.email,
+        name: user.name,
+        clientUrl,
+    });
 };

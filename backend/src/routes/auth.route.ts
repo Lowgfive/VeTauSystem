@@ -1,7 +1,7 @@
 import express from "express";
-import { register, login } from "../controllers/auth.controller";
+import { register, login, forgotPassword, resetPassword } from "../controllers/auth.controller";
 import { validate } from "../middlewares/validate.middleware";
-import { registerSchema, loginSchema } from "../schemas/auth.schema";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../schemas/auth.schema";
 
 const router = express.Router();
 
@@ -10,5 +10,11 @@ router.post("/register", validate(registerSchema), register);
 
 // POST /api/v1/auth/login
 router.post("/login", validate(loginSchema), login);
+
+// POST /api/v1/auth/forgot-password
+router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
+
+// POST /api/v1/auth/reset-password
+router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
 
 export default router;

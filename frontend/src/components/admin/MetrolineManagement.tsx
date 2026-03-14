@@ -13,7 +13,7 @@ export function MetrolineManagement() {
     const [isLoading, setIsLoading] = useState(true);
 
     // Hardcode base API for now
-    const API_URL = 'http://localhost:5000/api';
+    const API_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
     const fetchData = async () => {
         try {
