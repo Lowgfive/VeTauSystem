@@ -71,7 +71,7 @@ export const AppRouter = () => (
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-            {/* Admin only */}
+            {/* Admin only (Temporarily bypassed for testing) */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
 
             {/* 404 */}
