@@ -1,198 +1,153 @@
-import mongoose from "mongoose";
-import { ISchedule } from "../types/schedule.type";
-import { Schedule } from "../models/schedule.model";
-import { Route } from "../models/route.model";
-import { Train } from "../models/train.model";
-import { Station } from "../models/station.model";
-
-const TURNAROUND_TIME_MINUTES = 30;
-const MINUTES_PER_DAY = 24 * 60;
-
-function parseTimeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
+import {Schedule} from "../models/schedule.model";
+import {Train} from "../models/train.model";
+import {Route} from "../models/route.model";
+import {Station} from "../models/station.model";
+  function formatTime(date: Date) {
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
-function minutesToHHMM(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
 
-  return `${h.toString().padStart(2, "0")}:${m
-    .toString()
-    .padStart(2, "0")}`;
-}
 
-function addMinutes(date: Date, time: string, add: number) {
-  const baseMinutes = parseTimeToMinutes(time) + add;
+export default class ScheduleService {
 
-  const days = Math.floor(baseMinutes / MINUTES_PER_DAY);
-  const minutesOfDay = baseMinutes % MINUTES_PER_DAY;
+  static async generateSchedules(trainId: string, days = 10) {
 
-  const newDate = new Date(date);
-  newDate.setDate(newDate.getDate() + days);
+    const train = await Train.findById(trainId);
+    if (!train) throw new Error("Train not found");
 
-  return {
-    date: newDate,
-    time: minutesToHHMM(minutesOfDay),
-  };
-}
+    // Xóa các lịch trình trong tương lai của tàu này trước khi sinh mới để tránh trùng lặp
+    const now = new Date();
+    await Schedule.deleteMany({ 
+      train_id: trainId, 
+      date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+      status: 'SCHEDULED' // Chỉ xóa những cái chưa chạy hoặc chưa bị tác động
+    });
 
-export class ScheduleService {
-  static async generateSchedules(
-    trainId: string,
-    maxDays: number = 30
-  ) {
-    if (!mongoose.Types.ObjectId.isValid(trainId)) {
-      throw new Error("Invalid train id");
-    }
+    const stations = await Station.find().sort({ station_order: 1 });
+    const routes = await Route.find();
 
-    const train = await Train.findById(trainId).select("direction status");
+    // map route lookup nhanh
+    const routeMap = new Map();
+    routes.forEach(r => {
+      const key =
+        r.departure_station_id.toString() +
+        "-" +
+        r.arrival_station_id.toString();
 
-    if (!train || train.status !== "active") {
-      throw new Error("Train not active or not found");
-    }
+      routeMap.set(key, r);
+    });
 
-    const createdSchedules: any[] = [];
+    let direction = train.direction;
 
-    // Load toàn bộ station theo thứ tự một lần
-    const stations = await Station.find().sort({ station_order: 1 }).lean();
+    let stationIndex =
+      direction === "forward" ? 0 : stations.length - 1;
 
-    if (stations.length < 2) {
-      throw new Error("Not enough stations to generate schedules");
-    }
+    const startDate = new Date();
+    startDate.setHours(8, 0, 0, 0); // tàu chạy 8h sáng
 
-    // Lấy schedule mới nhất
-    let latestSchedule = await Schedule.findOne({
-      train_id: trainId,
-    }).sort({ date: -1, arrival_time: -1 });
+    let currentTime = new Date(startDate);
 
-    let direction: "forward" | "backward" = train.direction as
-      | "forward"
-      | "backward";
+    const endDate = new Date(
+      startDate.getTime() + days * 24 * 60 * 60 * 1000
+    );
 
-    // Nếu chưa có schedule → tạo chuyến đầu
-    if (!latestSchedule) {
-      let firstStation: any;
-      let secondStation: any;
+    const schedules: any[] = [];
 
-      if (direction === "forward") {
-        firstStation = stations[0];
-        secondStation = stations[1];
-      } else {
-        firstStation = stations[stations.length - 1];
-        secondStation = stations[stations.length - 2];
+    while (currentTime < endDate) {
+
+      const nextIndex =
+        direction === "forward"
+          ? stationIndex + 1
+          : stationIndex - 1;
+
+      // đảo chiều khi tới ga cuối
+      if (nextIndex < 0 || nextIndex >= stations.length) {
+
+        direction = direction === "forward"
+          ? "backward"
+          : "forward";
+
+        continue;
       }
 
-      const route = await Route.findOne({
-        departure_station_id: firstStation._id,
-        arrival_station_id: secondStation._id,
-      });
+      const currentStation = stations[stationIndex];
+      const nextStation = stations[nextIndex];
+
+      const routeKey =
+        currentStation._id.toString() +
+        "-" +
+        nextStation._id.toString();
+
+      const route = routeMap.get(routeKey);
 
       if (!route) {
-        throw new Error("Route not found for first segment");
+        console.error(`Dừng sinh lịch: Thiếu lộ trình giữa [${currentStation.station_name}] và [${nextStation.station_name}]. Vui lòng cấu hình lộ trình này.`);
+        break;
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const departureDate = new Date(currentTime);
 
-      const departure_time = "08:00";
+      const travelMs = route.hour * 60 * 60 * 1000;
 
-      const arrival = addMinutes(today, departure_time, route.hour * 60);
+      const arrivalDate = new Date(
+        departureDate.getTime() + travelMs
+      );
 
-      latestSchedule = await Schedule.create({
+      schedules.push({
+        train_id: train._id,
         route_id: route._id,
-        train_id: trainId,
-        date: arrival.date,
-        departure_time,
-        arrival_time: arrival.time,
+
+        date: new Date(
+          departureDate.getFullYear(),
+          departureDate.getMonth(),
+          departureDate.getDate()
+        ),
+
+        departure_time: formatTime(departureDate),
+        arrival_time: formatTime(arrivalDate)
       });
 
-      createdSchedules.push(latestSchedule);
-    }
-
-    if (!latestSchedule) {
-      // Type guard – thực tế nhánh này không xảy ra vì đã xử lý ở trên,
-      // nhưng thêm để TS yên tâm.
-      throw new Error("Failed to initialize first schedule");
-    }
-
-    const startDate = new Date(latestSchedule.date as Date);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + maxDays);
-
-    while ((latestSchedule!.date as Date) < endDate) {
-      const route: any = await Route.findById(
-        latestSchedule!.route_id as mongoose.Types.ObjectId
-      ).lean();
-
-      if (!route) break;
-
-      const arrivalStation: any = stations.find((s) => {
-        const sid = (s._id as mongoose.Types.ObjectId).toString();
-        const rid = (
-          route.arrival_station_id as mongoose.Types.ObjectId
-        ).toString();
-        return sid === rid;
-      });
-
-      if (!arrivalStation) break;
-
-      let step = direction === "forward" ? 1 : -1;
-
-      let nextStation = stations.find(
-        (s) => s.station_order === arrivalStation.station_order + step
+      // tàu dừng 30 phút
+      currentTime = new Date(
+        arrivalDate.getTime() + 30 * 60 * 1000
       );
 
-      if (!nextStation) {
-        direction = direction === "forward" ? "backward" : "forward";
-
-        step = -step;
-
-        nextStation = stations.find(
-          (s) => s.station_order === arrivalStation.station_order + step
-        );
-
-        await Train.updateOne({ _id: trainId }, { direction });
-      }
-
-      if (!nextStation) break;
-
-      const nextRoute: any = await Route.findOne({
-        departure_station_id: arrivalStation._id,
-        arrival_station_id: nextStation._id,
-      }).lean();
-
-      if (!nextRoute) break;
-
-      const departure = addMinutes(
-        latestSchedule!.date as Date,
-        (latestSchedule as any).arrival_time as string,
-        TURNAROUND_TIME_MINUTES
-      );
-
-      const arrival = addMinutes(
-        departure.date,
-        departure.time,
-        nextRoute.hour * 60
-      );
-
-      const newSchedule: any = await Schedule.create({
-        route_id: nextRoute._id,
-        train_id: trainId,
-        date: arrival.date,
-        departure_time: departure.time,
-        arrival_time: arrival.time,
-      });
-
-      createdSchedules.push(newSchedule);
-
-      latestSchedule = newSchedule;
+      stationIndex = nextIndex;
     }
 
-    return {
-      success: true,
-      message: `Generated ${createdSchedules.length} schedules`,
-      data: createdSchedules,
-    };
+    await Schedule.insertMany(schedules);
+
+    console.log(schedules)
+    return schedules.length;
+  }
+
+  // --- MỚI THÊM VÀO ĐỂ FIX API MAIN BRANCH ---
+  
+  static async getAllSchedules() {
+    const schedules = await Schedule.find()
+      .populate("train_id")
+      .populate({
+        path: "route_id",
+        populate: [
+          { path: "departure_station_id" },
+          { path: "arrival_station_id" }
+        ]
+      })
+      .sort({ date: 1, departure_time: 1 });
+    return schedules;
+  }
+
+  static async updateSchedule(id: string, updateData: Partial<typeof Schedule>) {
+    const updated = await Schedule.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+    if (!updated) {
+      throw new Error("Không tìm thấy chuyến tàu (Schedule not found)");
+    }
+    return updated;
   }
 }

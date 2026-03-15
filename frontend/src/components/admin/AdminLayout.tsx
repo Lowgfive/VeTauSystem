@@ -1,9 +1,9 @@
 import { ReactNode } from 'react';
-import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin } from 'lucide-react';
+import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 
-type AdminTab = 'dashboard' | 'stations' | 'routes' | 'trains' | 'seats' | 'schedules' | 'bookings' | 'payments' | 'refunds' | 'users';
+type AdminTab = 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -17,15 +17,11 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'stations' as const, label: 'Ga Tàu', icon: MapPin },
-    { id: 'routes' as const, label: 'Cấu hình Tuyến', icon: MapPin },
-    { id: 'trains' as const, label: 'Cấu hình Tàu', icon: Train },
-    { id: 'seats' as const, label: 'Sơ đồ Toa/Ghế', icon: Train },
-    { id: 'schedules' as const, label: 'Lịch trình', icon: Train },
-    { id: 'bookings' as const, label: 'Quản lý Vé', icon: Ticket },
-    { id: 'payments' as const, label: 'Giao dịch', icon: BarChart3 },
-    { id: 'refunds' as const, label: 'Yêu cầu Hủy/Đổi', icon: Ticket },
-    { id: 'users' as const, label: 'Người dùng', icon: BarChart3 },
+    { id: 'tickets' as const, label: 'Quản lý vé', icon: Ticket },
+    { id: 'lines' as const, label: 'Tuyến & Ga', icon: MapPin },
+    { id: 'trains' as const, label: 'Đoàn tàu', icon: Train },
+    { id: 'schedules' as const, label: 'Lịch trình', icon: CalendarClock },
+    { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },
   ];
 
   return (

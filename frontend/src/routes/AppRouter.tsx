@@ -44,7 +44,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const GuestOnly = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
     if (isAuthenticated) {
-        return user?.role === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />;
+        return <Navigate to={user?.role === "admin" ? "/admin" : "/"} replace />;
     }
     return <>{children}</>;
 };
@@ -71,7 +71,7 @@ export const AppRouter = () => (
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-            {/* Admin only */}
+            {/* Admin only (Temporarily bypassed for testing) */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
 
             {/* 404 */}

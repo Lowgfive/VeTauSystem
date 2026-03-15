@@ -5,11 +5,11 @@ import { StationManagement } from '../components/admin/StationManagement';
 import { DashboardOverview } from '../components/admin/DashboardOverview';
 import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 import { BookingManagement } from '../components/admin/BookingManagement';
-
-type AdminTab = 'dashboard' | 'stations' | 'routes' | 'trains' | 'seats' | 'schedules' | 'bookings' | 'payments' | 'refunds' | 'users';
+import { TicketManagement } from '../components/admin/TicketManagement';
+import { LineManagement } from '../components/admin/LineManagement';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports'>('trains');
 
     const handleLogout = () => {
         // Implement logout logic
@@ -20,36 +20,32 @@ export default function AdminPage() {
         switch (activeTab) {
             case 'dashboard':
                 return <DashboardOverview />;
-            case 'stations':
-                return <StationManagement />;
             case 'trains':
                 return <TrainManagement />;
+            case 'lines':
+                return <LineManagement />;
             case 'schedules':
                 return <ScheduleManagement />;
-            case 'bookings':
-                return <BookingManagement />;
-            case 'routes':
-            case 'seats':
-            case 'payments':
-            case 'refunds':
-            case 'users':
+            case 'tickets':
+                return <TicketManagement />;
+            case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">
                         <div className="text-center">
                             <h2 className="text-2xl font-semibold text-[#0A2A43] mb-2">Chức năng đang phát triển</h2>
-                            <p className="text-muted-foreground">Tính năng quản lý phần này sẽ được ra mắt trong thời gian sớm nhất.</p>
+                            <p className="text-muted-foreground">Tính năng báo cáo thống kê sẽ được ra mắt trong thời gian sớm nhất.</p>
                         </div>
                     </div>
                 );
             default:
-                return null;
+                return <DashboardOverview />;
         }
     };
 
     return (
         <AdminLayout
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
+            activeTab={activeTab as any}
+            onTabChange={setActiveTab as any}
             onLogout={handleLogout}
         >
             {renderContent()}

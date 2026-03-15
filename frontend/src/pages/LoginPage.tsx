@@ -15,7 +15,7 @@ export default function LoginPageWrapper() {
       const { token, user } = res.data.data;
       dispatch(loginSuccess({ token, user }));
       toast.success("Đăng nhập thành công!");
-      
+      // Redirect admin to admin dashboard, regular users to home
       if (user.role === "admin") {
         navigate("/admin");
       } else {
