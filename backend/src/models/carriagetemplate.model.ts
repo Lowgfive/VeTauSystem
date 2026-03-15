@@ -15,7 +15,7 @@ const carriageTemplateSchema = new Schema<ICarriageTemplate>(
         name: { type: String, required: true, unique: true },
         seat_type: {
             type: String,
-            enum: ["seat", "priority", "standing", "business", "economy"],
+            enum: ["hard_seat", "soft_seat", "sleeper_6", "sleeper_4", "vip_sleeper_2"],
             required: true
         },
         total_seats: { type: Number, required: true },

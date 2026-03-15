@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Search, Filter, Download, Eye, X, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { apiClient } from '../../config/api';
 
 interface Ticket {
   id: string;
@@ -28,8 +29,80 @@ export function TicketManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data
+  // Fetch tickets from API
+  const fetchTickets = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.get('/bookings/all');
+      const bookings = response.data.data || [];
+
+      // Map API response to Ticket interface
+      const mappedTickets: Ticket[] = bookings.map((booking: any) => {
+        const user = booking.user_id || {};
+        const schedule = booking.schedule_id || {};
+        const train = schedule.train_id || {};
+        const route = schedule.route_id || {};
+        const departureStation = route.departure_station_id || {};
+        const arrivalStation = route.arrival_station_id || {};
+        const seat = booking.seat_id || {};
+        const carriage = seat.carriage_id || {};
+
+        // Format date
+        const departureDate = schedule.date
+          ? new Date(schedule.date).toLocaleDateString('vi-VN')
+          : 'N/A';
+
+        // Format booking date
+        const bookingDate = booking.createdAt
+          ? new Date(booking.createdAt).toLocaleString('vi-VN')
+          : 'N/A';
+
+        // Map status
+        let status: 'confirmed' | 'pending' | 'cancelled' | 'completed' = 'pending';
+        if (booking.status === 'paid' || booking.status === 'confirmed') {
+          status = 'confirmed';
+        } else if (booking.status === 'refunded') {
+          status = 'cancelled';
+        } else if (booking.status === 'pending') {
+          status = 'pending';
+        }
+
+        return {
+          id: booking._id,
+          bookingCode: booking.booking_code || 'N/A',
+          passengerName: user.name || 'N/A',
+          phone: user.phone || 'N/A',
+          email: user.email || 'N/A',
+          trainCode: train.train_code || train.train_name || 'N/A',
+          route: `${departureStation.station_name || 'N/A'} → ${arrivalStation.station_name || 'N/A'}`,
+          departureDate: departureDate,
+          departureTime: schedule.departure_time || 'N/A',
+          seatNumber: seat.seat_number || 'N/A',
+          seatType: carriage.seat_type || seat.seat_type || 'N/A',
+          price: booking.price || 0,
+          status: status,
+          paymentMethod: booking.status === 'paid' ? 'VNPay' : 'Chưa thanh toán',
+          bookingDate: bookingDate,
+        };
+      });
+
+      setTickets(mappedTickets);
+    } catch (error: any) {
+      console.error('Error fetching tickets:', error);
+      toast.error(error?.response?.data?.message || 'Không thể tải danh sách vé');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  // Mock data (fallback - can be removed after testing)
   const mockTickets: Ticket[] = [
     {
       id: '1',
@@ -135,38 +208,71 @@ export function TicketManagement() {
     },
   ];
 
-  const [tickets] = useState<Ticket[]>(mockTickets);
-
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = 
+    const matchesSearch =
       ticket.bookingCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.passengerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.phone.includes(searchTerm) ||
       ticket.trainCode.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
-  const handleCancelTicket = (ticket: Ticket) => {
+  const handleCancelTicket = async (ticket: Ticket) => {
     if (ticket.status === 'cancelled') {
       toast.error('Vé đã được hủy trước đó');
       return;
     }
-    
-    toast.success(`Đã hủy vé ${ticket.bookingCode}`);
-    setSelectedTicket(null);
+
+    try {
+      // TODO: Implement cancel booking API call if needed
+      toast.success(`Đã hủy vé ${ticket.bookingCode}`);
+      setSelectedTicket(null);
+      fetchTickets(); // Refresh list
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi hủy vé');
+    }
   };
 
-  const handleConfirmTicket = (ticket: Ticket) => {
+  const handleConfirmTicket = async (ticket: Ticket) => {
     if (ticket.status === 'confirmed') {
       toast.error('Vé đã được xác nhận');
       return;
     }
-    
-    toast.success(`Đã xác nhận vé ${ticket.bookingCode}`);
-    setSelectedTicket(null);
+
+    try {
+      // TODO: Implement confirm booking API call if needed
+      toast.success(`Đã xác nhận vé ${ticket.bookingCode}`);
+      setSelectedTicket(null);
+      fetchTickets(); // Refresh list
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi xác nhận vé');
+    }
+  };
+
+  const handleDownloadTicket = async (bookingCode: string) => {
+    try {
+      const response = await apiClient.get(`/tickets/download/${bookingCode}`, {
+        responseType: 'blob', // Important for binary data
+      });
+
+      // Create blob and download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ticket-${bookingCode}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Đã tải vé thành công');
+    } catch (error: any) {
+      console.error('Error downloading ticket:', error);
+      toast.error(error?.response?.data?.message || 'Không thể tải vé. Vui lòng thử lại.');
+    }
   };
 
   const getStatusBadge = (status: Ticket['status']) => {
@@ -176,10 +282,10 @@ export function TicketManagement() {
       cancelled: { label: 'Đã hủy', className: 'bg-red-100 text-red-800', icon: XCircle },
       completed: { label: 'Hoàn thành', className: 'bg-blue-100 text-blue-800', icon: CheckCircle },
     };
-    
+
     const config = configs[status];
     const Icon = config.icon;
-    
+
     return (
       <Badge className={`${config.className} flex items-center gap-1`}>
         <Icon className="w-3 h-3" />
@@ -202,6 +308,12 @@ export function TicketManagement() {
         <h1 className="text-3xl font-bold text-gray-900">Quản lý vé</h1>
         <p className="text-muted-foreground mt-1">Quản lý và theo dõi tất cả vé đã đặt</p>
       </div>
+
+      {isLoading && (
+        <div className="text-center py-8 text-muted-foreground">
+          Đang tải dữ liệu...
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -230,7 +342,7 @@ export function TicketManagement() {
               className="pl-10"
             />
           </div>
-          
+
           <div className="flex gap-2">
             <select
               value={statusFilter}
@@ -243,12 +355,12 @@ export function TicketManagement() {
               <option value="cancelled">Đã hủy</option>
               <option value="completed">Hoàn thành</option>
             </select>
-            
+
             <Button variant="outline" size="sm">
               <Filter className="w-4 h-4 mr-2" />
               Lọc
             </Button>
-            
+
             <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Xuất Excel
@@ -424,7 +536,7 @@ export function TicketManagement() {
                 {/* Actions */}
                 <div className="flex gap-3">
                   {selectedTicket.status === 'pending' && (
-                    <Button 
+                    <Button
                       className="flex-1"
                       onClick={() => handleConfirmTicket(selectedTicket)}
                     >
@@ -433,7 +545,7 @@ export function TicketManagement() {
                     </Button>
                   )}
                   {selectedTicket.status !== 'cancelled' && selectedTicket.status !== 'completed' && (
-                    <Button 
+                    <Button
                       variant="destructive"
                       className="flex-1"
                       onClick={() => handleCancelTicket(selectedTicket)}
@@ -442,7 +554,11 @@ export function TicketManagement() {
                       Hủy vé
                     </Button>
                   )}
-                  <Button variant="outline" className="flex-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleDownloadTicket(selectedTicket.bookingCode)}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     In vé
                   </Button>

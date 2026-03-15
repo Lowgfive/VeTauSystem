@@ -12,8 +12,8 @@ const seatTemplateSchema = new Schema<ISeatTemplate>(
     seat_number: { type: String, required: true },
     type: {
       type: String,
-      enum: ["seat", "priority", "business", "economy"],
-      default: "seat"
+      enum: ["hard_seat", "soft_seat", "sleeper_6", "sleeper_4", "vip_sleeper_2"],
+      default: "hard_seat"
     },
     is_available: { type: Boolean, default: true }
   },

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
 import { LineManagement } from '../components/admin/LineManagement';
+import { TicketManagement } from '../components/admin/TicketManagement';
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'reports'>('trains');
@@ -16,8 +17,9 @@ export default function AdminPage() {
                 return <TrainManagement />;
             case 'lines':
                 return <LineManagement />;
-            case 'dashboard':
             case 'tickets':
+                return <TicketManagement />;
+            case 'dashboard':
             case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">
