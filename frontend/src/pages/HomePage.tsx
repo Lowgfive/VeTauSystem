@@ -22,6 +22,7 @@ export default function HomePage() {
       onNavigateToMyBookings={() => navigate("/manage")}
       onNavigateToSchedule={() => navigate("/search")}
       onNavigateToSupport={() => navigate("/support")}
+      onNavigateToAdmin={user?.role?.toLowerCase() === "admin" ? () => navigate("/admin") : undefined}
       onSearch={(params) =>
         navigate("/search", { state: { searchParams: params } })
       }

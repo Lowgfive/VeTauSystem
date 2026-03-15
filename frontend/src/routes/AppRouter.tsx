@@ -37,14 +37,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
     if (!isAuthenticated) return <Navigate to="/login" replace />;
-    if (user?.role !== "admin") return <Navigate to="/" replace />;
+    if (user?.role?.toLowerCase() !== "admin") return <Navigate to="/" replace />;
     return <>{children}</>;
 };
 
 const GuestOnly = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
-    if (isAuthenticated) {
-        return <Navigate to={user?.role === "admin" ? "/admin" : "/"} replace />;
+    if (isAuthenticated && user) {
+        return <Navigate to={user.role?.toLowerCase() === "admin" ? "/admin" : "/"} replace />;
     }
     return <>{children}</>;
 };

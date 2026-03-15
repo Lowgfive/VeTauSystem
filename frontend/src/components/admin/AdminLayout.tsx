@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useState } from 'react';
+import { useAppSelector } from '../../hooks/useRedux';
 
 type AdminTab = 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
 
@@ -14,6 +14,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, activeTab, onTabChange, onLogout }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAppSelector((s) => s.auth);
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
@@ -110,11 +111,13 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
 
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="font-bold text-primary">AD</span>
+                <span className="font-bold text-primary">
+                  {user?.name?.substring(0, 2).toUpperCase() || "AD"}
+                </span>
               </div>
               <div className="hidden sm:block">
-                <p className="font-semibold">Admin User</p>
-                <p className="text-xs text-muted-foreground">admin@vnrailway.vn</p>
+                <p className="font-semibold">{user?.name || "Admin User"}</p>
+                <p className="text-xs text-muted-foreground">{user?.email || "admin@vnrailway.vn"}</p>
               </div>
             </div>
           </div>

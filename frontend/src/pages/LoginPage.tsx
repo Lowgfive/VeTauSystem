@@ -15,12 +15,15 @@ export default function LoginPageWrapper() {
       const { token, user } = res.data.data;
       dispatch(loginSuccess({ token, user }));
       toast.success("Đăng nhập thành công!");
-      // Redirect admin to admin dashboard, regular users to home
-      if (user.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      
+      // Short delay to ensure Redux state is updated before navigation
+      setTimeout(() => {
+        if (user.role?.toLowerCase() === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      }, 100);
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Email hoặc mật khẩu không đúng";
       toast.error(msg);

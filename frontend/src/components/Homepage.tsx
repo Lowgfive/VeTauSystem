@@ -101,14 +101,14 @@ export function Homepage({
       return;
     }
 
-    const originStation = stations.find(s => s.id === originId);
-    const destinationStation = stations.find(s => s.id === destinationId);
+    const originStation = stations.find(s => s._id === originId);
+    const destinationStation = stations.find(s => s._id === destinationId);
 
     const searchParams = {
       originId,
       destinationId,
-      originName: originStation?.name || "",
-      destinationName: destinationStation?.name || "",
+      originName: originStation?.station_name || "",
+      destinationName: destinationStation?.station_name || "",
       date: departureDate,
       returnDate: isRoundTrip ? returnDate : undefined,
     };
@@ -225,15 +225,18 @@ export function Homepage({
                 className="h-8 bg-white/30 mx-2"
               />
 
-              {/* Hidden admin link */}
+              {/* Admin link - Now visible for admins */}
               {onNavigateToAdmin && (
-                <button
-                  onClick={onNavigateToAdmin}
-                  className="px-2 py-2 text-xs text-white/40 hover:text-white/70 transition-colors"
-                  title="Admin Panel"
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigateToAdmin();
+                  }}
+                  className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
                 >
-                  •
-                </button>
+                  Dashboard
+                </a>
               )}
 
               {isLoggedIn ? (
@@ -318,7 +321,7 @@ export function Homepage({
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    onNavigateToSupport();
+                    onNavigateToSupport?.();
                   }}
                   className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
                 >
@@ -464,14 +467,14 @@ export function Homepage({
                             <SelectContent className="rounded-xl">
                               {stations.map((station) => (
                                 <SelectItem
-                                  key={station.id}
-                                  value={station.id}
+                                  key={station._id}
+                                  value={station._id}
                                   disabled={
-                                    station.id === destinationId
+                                    station._id === destinationId
                                   }
                                   className="cursor-pointer"
                                 >
-                                  {station.name}
+                                  {station.station_name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -516,14 +519,14 @@ export function Homepage({
                             <SelectContent className="rounded-xl">
                               {stations.map((station) => (
                                 <SelectItem
-                                  key={station.id}
-                                  value={station.id}
+                                  key={station._id}
+                                  value={station._id}
                                   disabled={
-                                    station.id === originId
+                                    station._id === originId
                                   }
                                   className="cursor-pointer"
                                 >
-                                  {station.name}
+                                  {station.station_name}
                                 </SelectItem>
                               ))}
                             </SelectContent>

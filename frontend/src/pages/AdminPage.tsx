@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../hooks/useRedux';
+import { logout } from '../store/slices/authSlice';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
 import { StationManagement } from '../components/admin/StationManagement';
@@ -9,11 +12,13 @@ import { TicketManagement } from '../components/admin/TicketManagement';
 import { LineManagement } from '../components/admin/LineManagement';
 
 export default function AdminPage() {
+    const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports'>('trains');
 
     const handleLogout = () => {
-        // Implement logout logic
-        console.log("Logout triggered");
+        dispatch(logout());
+        navigate("/login");
     };
 
     const renderContent = () => {

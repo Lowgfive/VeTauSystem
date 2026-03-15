@@ -10,7 +10,6 @@ import { Train, Line, Carriage, Seat } from '../../types';
 import { SeatMap } from '../SeatMap';
 import { apiClient } from '../../config/api';
 
-
 export function TrainManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -59,8 +58,6 @@ export function TrainManagement() {
       }
     } catch (error: any) {
       console.error('Lỗi khi fetch data:', error);
-
-      // Kiểm tra nếu là lỗi kết nối (backend không chạy)
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.code === 'ECONNREFUSED') {
         toast.error('Không thể kết nối đến server. Vui lòng kiểm tra backend server đã chạy chưa.', {
           description: 'Backend server cần chạy tại http://localhost:4000',
@@ -82,7 +79,6 @@ export function TrainManagement() {
     train.train_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     train.train_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
 
   const getStatusBadge = (status: boolean | string) => {
     if (typeof status === 'boolean') {
@@ -118,26 +114,16 @@ export function TrainManagement() {
     setSelectedTrainForMap(train);
     try {
       const res = await apiClient.get(`/trains/${train._id}/seatmap`);
-      console.log('SeatMap API Response:', res.data);
-
       if (res.data.success && res.data.data) {
         const carriages = res.data.data.carriages || [];
         const seatsByCarriage = res.data.data.seatsByCarriage || {};
 
-        console.log('Carriages:', carriages);
-        console.log('SeatsByCarriage:', seatsByCarriage);
-
         if (carriages.length === 0) {
-          // Hỏi user có muốn tạo toa và ghế không
           toast.warning('Tàu này chưa có toa xe', {
             description: 'Bạn có muốn tạo toa và ghế tự động không?',
             action: {
               label: 'Tạo ngay',
               onClick: () => handleGenerateCarriages(train)
-            },
-            cancel: {
-              label: 'Hủy',
-              onClick: () => { }
             },
             duration: 10000
           });
@@ -162,9 +148,8 @@ export function TrainManagement() {
       const res = await apiClient.post(`/trains/${train._id}/generate-carriages`);
       toast.dismiss(loadingToast);
       toast.success(res.data.message || 'Đã tạo toa và ghế thành công');
-      // Sau khi tạo xong, tự động mở sơ đồ
       await handleViewMap(train);
-      fetchData(); // Refresh danh sách tàu để cập nhật stats
+      fetchData();
     } catch (e: any) {
       console.error('Error generating carriages:', e);
       toast.dismiss(loadingToast);
@@ -177,8 +162,8 @@ export function TrainManagement() {
     setFormData({
       train_code: train.train_code || '',
       train_name: train.train_name || '',
-      template_id: typeof train.template_id === 'object' ? train.template_id._id : train.template_id || '',
-      line_id: typeof train.line_id === 'object' ? train.line_id._id : train.line_id || ''
+      template_id: typeof train.template_id === 'object' ? (train.template_id as any)._id : train.template_id || '',
+      line_id: typeof train.line_id === 'object' ? (train.line_id as any)._id : train.line_id || ''
     });
     setShowEditModal(true);
   };
@@ -201,7 +186,7 @@ export function TrainManagement() {
   };
 
   const handleDeleteTrain = async (train: Train) => {
-    if (confirm(`Bạn có chắc muốn xóa tàu ${train.train_code}?`)) {
+    if (window.confirm(`Bạn có chắc muốn xóa tàu ${train.train_code}?`)) {
       try {
         await apiClient.delete(`/trains/${train._id}`);
         toast.success(`Đã xóa tàu ${train.train_code}`);
@@ -221,13 +206,11 @@ export function TrainManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Quản lý tàu</h1>
         <p className="text-muted-foreground mt-1">Quản lý tàu, toa, ghế và lịch trình</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {trainStats.map((stat) => (
           <Card key={stat.label} className="p-4">
@@ -242,19 +225,6 @@ export function TrainManagement() {
         ))}
       </div>
 
-      {/* Tabs - Only Trains tab remains */}
-      <div className="border-b">
-        <div className="flex gap-4">
-          <button
-            className="pb-3 px-1 font-medium border-b-2 border-primary text-primary transition-colors"
-          >
-            <TrainIcon className="w-4 h-4 inline mr-2" />
-            Danh sách tàu
-          </button>
-        </div>
-      </div>
-
-      {/* Search & Actions */}
       <Card className="p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
@@ -266,14 +236,12 @@ export function TrainManagement() {
               className="pl-10"
             />
           </div>
-
           <Button onClick={() => setShowAddModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Thêm tàu mới
           </Button>
         </div>
       </Card>
-
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredTrains.map((train) => (
@@ -282,59 +250,33 @@ export function TrainManagement() {
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <TrainIcon className="w-6 h-6 text-primary" />
-
-      {/* Trains List */}
-      {activeTab === 'trains' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredTrains.map((train) => (
-            <Card key={train._id} className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <TrainIcon className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">{train.train_code}</h3>
-                    <p className="text-sm text-muted-foreground">{train.train_name}</p>
-                  </div>
-                </div>
-                {getStatusBadge(train.status || train.is_active)}
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Loại tàu:</span>
-                  <span className="font-medium">{train.train_type}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Số toa:</span>
-                  <span className="font-medium">{train.total_carriages} toa</span>
-
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{train.train_code}</h3>
                   <p className="text-sm text-muted-foreground">{train.train_name}</p>
                 </div>
               </div>
-              {getStatusBadge(train.is_active)}
+              {getStatusBadge(train.status || train.is_active || false)}
             </div>
 
             <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Loại tàu:</span>
+                <span className="font-medium">{train.train_type || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Số toa:</span>
-                <span className="font-medium">{train.total_carriages ? `${train.total_carriages} toa` : 'N/A'}</span>
+                <span className="font-medium">{train.total_carriages || 0} toa</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Tổng ghế:</span>
-                <span className="font-medium">{train.capacity ? `${train.capacity} ghế` : 'N/A'}</span>
+                <span className="font-medium">{train.capacity || 0} ghế</span>
               </div>
               <div className="pt-2 border-t">
                 <p className="text-sm text-muted-foreground mb-1">Tuyến đường:</p>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="secondary" className="text-xs">
-                    {typeof train.line_id === 'object' ? (train.line_id as Line).line_name : 'N/A'}
-                  </Badge>
-                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {typeof train.line_id === 'object' ? (train.line_id as any).line_name : 'N/A'}
+                </Badge>
               </div>
             </div>
 
@@ -343,21 +285,11 @@ export function TrainManagement() {
                 <Eye className="w-4 h-4 mr-2" />
                 Sơ đồ
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleEditTrain(train)}
-              >
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditTrain(train)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Sửa
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-destructive hover:bg-destructive hover:text-white"
-                onClick={() => handleDeleteTrain(train)}
-              >
+              <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleDeleteTrain(train)}>
                 <Trash2 className="w-4 h-4 mr-2" />
                 Xóa
               </Button>
@@ -366,163 +298,54 @@ export function TrainManagement() {
         ))}
 
         {filteredTrains.length === 0 && (
-          <div className="col-span-2 text-center py-12 text-muted-foreground">
+          <div className="col-span-1 lg:col-span-2 text-center py-12 text-muted-foreground">
             Không tìm thấy tàu nào
           </div>
         )}
       </div>
 
-      {/* Add Modal */}
-      {showAddModal && (
+      {/* Add/Edit Modal Logic... simplified for brevity but ensuring correctness */}
+      {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">
-                  Thêm tàu mới
-                </h2>
-                <button onClick={() => setShowAddModal(false)}>
+                <h2 className="text-2xl font-bold">{showAddModal ? 'Thêm tàu mới' : 'Sửa thông tin tàu'}</h2>
+                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedTrain(null); }}>
                   <X className="w-6 h-6" />
                 </button>
               </div>
-
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Mã tàu</Label>
-                    <Input
-                      placeholder="L5-01"
-                      value={formData.train_code}
-                      onChange={(e: any) => setFormData({ ...formData, train_code: e.target.value })}
-                    />
+                    <Input value={formData.train_code} onChange={(e) => setFormData({ ...formData, train_code: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Tên tàu</Label>
-                    <Input
-                      placeholder="Tàu Tuyến 5"
-                      value={formData.train_name}
-                      onChange={(e: any) => setFormData({ ...formData, train_name: e.target.value })}
-                    />
+                    <Input value={formData.train_name} onChange={(e) => setFormData({ ...formData, train_name: e.target.value })} />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Mẫu tàu (Template)</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.template_id}
-                    onChange={(e: any) => setFormData({ ...formData, template_id: e.target.value })}
-                  >
-                    {trainTemplates.map((tpl: any) => (
-                      <option key={tpl._id} value={tpl._id}>{tpl.template_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tuyến đường</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.line_id}
-                    onChange={(e: any) => setFormData({ ...formData, line_id: e.target.value })}
-                  >
-                    {lines.map((line: any) => (
-                      <option key={line._id} value={line._id}>{line.line_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button className="flex-1" onClick={handleAddTrain}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Thêm tàu
-                  </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => setShowAddModal(false)}>
-                    Hủy
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && selectedTrain && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">
-                  Sửa thông tin tàu
-                </h2>
-                <button onClick={() => {
-                  setShowEditModal(false);
-                  setSelectedTrain(null);
-                }}>
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Mã tàu</Label>
-                    <Input
-                      placeholder="L5-01"
-                      value={formData.train_code}
-                      onChange={(e: any) => setFormData({ ...formData, train_code: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tên tàu</Label>
-                    <Input
-                      placeholder="Tàu Tuyến 5"
-                      value={formData.train_name}
-                      onChange={(e: any) => setFormData({ ...formData, train_name: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Mẫu tàu (Template)</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.template_id}
-                    onChange={(e: any) => setFormData({ ...formData, template_id: e.target.value })}
-                  >
+                  <select className="w-full px-3 py-2 border rounded-lg" value={formData.template_id} onChange={(e) => setFormData({ ...formData, template_id: e.target.value })}>
                     <option value="">Chọn template</option>
-                    {trainTemplates.map((tpl: any) => (
-                      <option key={tpl._id} value={tpl._id}>{tpl.template_name}</option>
-                    ))}
+                    {trainTemplates.map((tpl) => <option key={tpl._id} value={tpl._id}>{tpl.template_name}</option>)}
                   </select>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Tuyến đường</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.line_id}
-                    onChange={(e: any) => setFormData({ ...formData, line_id: e.target.value })}
-                  >
+                  <select className="w-full px-3 py-2 border rounded-lg" value={formData.line_id} onChange={(e) => setFormData({ ...formData, line_id: e.target.value })}>
                     <option value="">Chọn tuyến</option>
-                    {lines.map((line: any) => (
-                      <option key={line._id} value={line._id}>{line.line_name}</option>
-                    ))}
+                    {lines.map((line) => <option key={line._id} value={line._id}>{line.line_name}</option>)}
                   </select>
                 </div>
-
                 <div className="flex gap-3 pt-4">
-                  <Button className="flex-1" onClick={handleUpdateTrain}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Cập nhật
+                  <Button className="flex-1" onClick={showAddModal ? handleAddTrain : handleUpdateTrain}>
+                    {showAddModal ? <Plus className="w-4 h-4 mr-2" /> : <Edit className="w-4 h-4 mr-2" />}
+                    {showAddModal ? 'Thêm tàu' : 'Cập nhật'}
                   </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => {
-                    setShowEditModal(false);
-                    setSelectedTrain(null);
-                  }}>
-                    Hủy
-                  </Button>
+                  <Button variant="outline" className="flex-1" onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedTrain(null); }}>Hủy</Button>
                 </div>
               </div>
             </div>
@@ -536,18 +359,10 @@ export function TrainManagement() {
           <Card className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">
-                  Sơ đồ ghế - Tàu {selectedTrainForMap.train_code}
-                </h2>
-                <button onClick={() => setShowSeatMapModal(false)}>
-                  <X className="w-6 h-6" />
-                </button>
+                <h2 className="text-2xl font-bold">Sơ đồ ghế - Tàu {selectedTrainForMap.train_code}</h2>
+                <button onClick={() => setShowSeatMapModal(false)}><X className="w-6 h-6" /></button>
               </div>
-              <SeatMap
-                carriages={carriagesForMap}
-                seatsData={seatsForMap}
-                readOnly={true}
-              />
+              <SeatMap carriages={carriagesForMap} seatsData={seatsForMap} readOnly={true} />
             </div>
           </Card>
         </div>
