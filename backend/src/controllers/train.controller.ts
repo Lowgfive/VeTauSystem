@@ -38,8 +38,13 @@ export const getAllTrains = async (_req: Request, res: Response, next: NextFunct
 // Lấy chi tiết 1 tàu (kèm danh sách toa)
 export const getTrainById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+
+        const { id } = (req as any).params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
         const result = await trainService.getTrainById(id);
