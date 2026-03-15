@@ -37,8 +37,7 @@ interface CreateTrainInput {
     train_name: string;
     train_code: string;
     train_type?: TrainType;
-    line_id: string;
-    template_id?: string; // Thêm template_id từ DB
+    template_id?: string;
     amenities?: string[];
 }
 
@@ -89,7 +88,6 @@ export const createTrain = async (input: CreateTrainInput) => {
         train_name: input.train_name,
         train_code: input.train_code,
         train_type: input.train_type || "manual",
-        line_id: input.line_id,
         template_id: input.template_id,
         total_carriages: totalCarriages,
         capacity: totalCapacity,
@@ -166,22 +164,17 @@ const generateSeatsForCarriage = async (
 };
 
 export const getAllTrains = async () => {
-
     return Train.find({
         $or: [
             { is_active: true },
-            { is_active: { $exists: false } } // Include old documents without is_active field
+            { is_active: { $exists: false } }
         ]
     })
-=======
-    return Train.find({ status: 'active' })
-
-        .populate("line_id", "line_name line_code")
         .sort({ train_code: 1 });
 };
 
 export const getTrainById = async (trainId: string) => {
-    const train = await Train.findById(trainId).populate("line_id", "line_name line_code");
+    const train = await Train.findById(trainId);
     if (!train) return null;
 
     const carriages = await Carriage.find({ train_id: trainId }).sort({

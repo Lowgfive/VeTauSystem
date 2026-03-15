@@ -16,11 +16,6 @@ const stationSchema = new Schema<IStation>(
       unique: true,
       required: true,
     },
-    line_id: {
-      type: Schema.Types.ObjectId,
-      ref: "Line",
-      required: true,
-    },
     location: {
       type: String,
       required: true
@@ -35,6 +30,6 @@ const stationSchema = new Schema<IStation>(
 );
 
 // Index theo tuyến + thứ tự ga
-stationSchema.index({ line_id: 1, station_order: 1 }, { unique: true });
+stationSchema.index({ station_order: 1 }, { unique: true });
 
 export const Station = mongoose.model<IStation>("Station", stationSchema);

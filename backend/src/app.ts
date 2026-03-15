@@ -18,7 +18,6 @@ import routerSeat from "./routes/seat.route";
 import routerSchedule from "./routes/schedule.route";
 import routerTemplate from "./routes/template.route";
 
-import routerLine from "./routes/line.route";
 
 import routerPayment from "./routes/payment.route";
 
@@ -89,7 +88,6 @@ app.use("/api/v1/bookings", routerBooking);
 app.use("/api/v1/seats", routerSeat);
 app.use("/api/v1/templates", routerTemplate);
 
-app.use("/api/v1/lines", routerLine);
 
 app.use("/api/v1/payments", routerPayment);
 
