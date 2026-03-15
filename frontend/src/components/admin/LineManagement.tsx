@@ -2,32 +2,53 @@ import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { MapPin, Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { MapPin, Plus, Edit, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Line, Station } from '../../types';
-import axios from 'axios';
+import { apiClient } from '../../config/api';
 
 export function LineManagement() {
     const [lines, setLines] = useState<Line[]>([]);
     const [stations, setStations] = useState<Station[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showLineModal, setShowLineModal] = useState(false);
+    const [showStationModal, setShowStationModal] = useState(false);
+    const [editingLine, setEditingLine] = useState<Line | null>(null);
+    const [editingStation, setEditingStation] = useState<Station | null>(null);
 
-    // Hardcode base API for now
-    const API_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+    const [lineFormData, setLineFormData] = useState({
+        line_name: '',
+        line_code: '',
+        total_distance: 0,
+        total_stations: 0,
+        is_active: true
+    });
+
+    const [stationFormData, setStationFormData] = useState({
+        station_name: '',
+        station_code: '',
+        station_order: 0,
+        line_id: '',
+        location: '',
+        station_type: 'underground' as 'underground' | 'elevated' | 'ground',
+        is_active: true
+    });
 
     const fetchData = async () => {
         try {
             setIsLoading(true);
             const [linesRes, stationsRes] = await Promise.all([
-                axios.get(`${API_URL}/lines`),
-                axios.get(`${API_URL}/stations`)
+                apiClient.get('/lines'),
+                apiClient.get('/stations')
             ]);
 
             setLines(linesRes.data.data);
             setStations(stationsRes.data.data);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching data:', error);
-            toast.error('Không thể tải dữ liệu tuyến và ga.');
+            toast.error(error?.response?.data?.message || 'Không thể tải dữ liệu tuyến và ga.');
         } finally {
             setIsLoading(false);
         }
@@ -36,6 +57,126 @@ export function LineManagement() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    const handleAddLine = () => {
+        setEditingLine(null);
+        setLineFormData({
+            line_name: '',
+            line_code: '',
+            total_distance: 0,
+            total_stations: 0,
+            is_active: true
+        });
+        setShowLineModal(true);
+    };
+
+    const handleEditLine = (line: Line) => {
+        setEditingLine(line);
+        setLineFormData({
+            line_name: line.line_name || '',
+            line_code: line.line_code || '',
+            total_distance: line.total_distance || 0,
+            total_stations: line.total_stations || 0,
+            is_active: line.is_active !== undefined ? line.is_active : true
+        });
+        setShowLineModal(true);
+    };
+
+    const handleSaveLine = async () => {
+        try {
+            if (!lineFormData.line_name || !lineFormData.line_code) {
+                toast.error('Vui lòng nhập đầy đủ thông tin');
+                return;
+            }
+
+            if (editingLine) {
+                await apiClient.put(`/lines/${editingLine._id}`, lineFormData);
+                toast.success('Cập nhật tuyến thành công');
+            } else {
+                await apiClient.post('/lines', lineFormData);
+                toast.success('Thêm tuyến thành công');
+            }
+            setShowLineModal(false);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Có lỗi xảy ra');
+        }
+    };
+
+    const handleDeleteLine = async (line: Line) => {
+        if (!confirm(`Bạn có chắc muốn xóa tuyến ${line.line_name}?`)) {
+            return;
+        }
+        try {
+            await apiClient.delete(`/lines/${line._id}`);
+            toast.success('Đã xóa tuyến thành công');
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xóa tuyến');
+        }
+    };
+
+    const handleAddStation = () => {
+        setEditingStation(null);
+        setStationFormData({
+            station_name: '',
+            station_code: '',
+            station_order: 0,
+            line_id: lines.length > 0 ? lines[0]._id : '',
+            location: '',
+            station_type: 'underground',
+            is_active: true
+        });
+        setShowStationModal(true);
+    };
+
+    const handleEditStation = (station: Station) => {
+        setEditingStation(station);
+        setStationFormData({
+            station_name: station.station_name || '',
+            station_code: station.station_code || '',
+            station_order: station.station_order || 0,
+            line_id: typeof station.line_id === 'object' ? station.line_id._id : station.line_id || '',
+            location: station.location || '',
+            station_type: station.station_type || 'underground',
+            is_active: station.is_active !== undefined ? station.is_active : true
+        });
+        setShowStationModal(true);
+    };
+
+    const handleSaveStation = async () => {
+        try {
+            if (!stationFormData.station_name || !stationFormData.station_code || !stationFormData.line_id) {
+                toast.error('Vui lòng nhập đầy đủ thông tin');
+                return;
+            }
+
+            if (editingStation) {
+                await apiClient.put(`/stations/${editingStation._id}`, stationFormData);
+                toast.success('Cập nhật ga thành công');
+            } else {
+                await apiClient.post('/stations', stationFormData);
+                toast.success('Thêm ga thành công');
+            }
+            setShowStationModal(false);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Có lỗi xảy ra');
+        }
+    };
+
+    const handleDeleteStation = async (station: Station) => {
+        if (!confirm(`Bạn có chắc muốn xóa ga ${station.station_name}?`)) {
+            return;
+        }
+        try {
+            await apiClient.delete(`/stations/${station._id}`);
+            toast.success('Đã xóa ga thành công');
+            fetchData();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xóa ga');
+        }
+    };
 
 
     if (isLoading) {
@@ -50,7 +191,7 @@ export function LineManagement() {
                     <h1 className="text-3xl font-bold text-gray-900">Quản lý Tuyến & Hệ thống Ga</h1>
                     <p className="text-muted-foreground mt-1">Danh sách các tuyến tàu và hệ thống nhà ga trực thuộc</p>
                 </div>
-                <Button onClick={() => toast.info('Tính năng Thêm tuyến đang được phát triển.')} variant="default" className="bg-primary hover:bg-primary/90">
+                <Button onClick={handleAddLine} variant="default" className="bg-primary hover:bg-primary/90">
                     <Plus className="w-4 h-4 mr-2" />
                     Thêm tuyến mới
                 </Button>
@@ -92,10 +233,15 @@ export function LineManagement() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm">
+                                    <Button variant="outline" size="sm" onClick={() => handleEditLine(line)}>
                                         <Edit className="w-4 h-4 mr-2" /> Sửa
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-white">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-destructive hover:bg-destructive hover:text-white"
+                                        onClick={() => handleDeleteLine(line)}
+                                    >
                                         <Trash2 className="w-4 h-4 mr-2" /> Xóa
                                     </Button>
                                 </div>
@@ -108,7 +254,7 @@ export function LineManagement() {
             {/* Stations Section */}
             <div className="flex items-center justify-between mt-8 mb-4">
                 <h2 className="text-xl font-semibold">Hệ thống Nhà ga (Stations)</h2>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleAddStation}>
                     <Plus className="w-4 h-4 mr-2" /> Thêm ga mới
                 </Button>
             </div>
@@ -124,12 +270,13 @@ export function LineManagement() {
                                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Tuyến</th>
                                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Vị trí</th>
                                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Trạng thái</th>
+                                <th className="text-left py-3 px-4 font-semibold text-gray-700">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {stations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
                                         Chưa có dữ liệu nhà ga.
                                     </td>
                                 </tr>
@@ -153,6 +300,21 @@ export function LineManagement() {
                                                     <span className="text-gray-500">Chưa GD</span>
                                                 }
                                             </td>
+                                            <td className="py-3 px-4">
+                                                <div className="flex gap-2">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleEditStation(station)}>
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:bg-destructive hover:text-white"
+                                                        onClick={() => handleDeleteStation(station)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     );
                                 })
@@ -161,6 +323,172 @@ export function LineManagement() {
                     </table>
                 </div>
             </Card>
+
+            {/* Line Modal */}
+            {showLineModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold">
+                                    {editingLine ? 'Sửa tuyến' : 'Thêm tuyến mới'}
+                                </h2>
+                                <button onClick={() => setShowLineModal(false)}>
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Tên tuyến *</Label>
+                                        <Input
+                                            placeholder="Tuyến 5"
+                                            value={lineFormData.line_name}
+                                            onChange={(e) => setLineFormData({ ...lineFormData, line_name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Mã tuyến *</Label>
+                                        <Input
+                                            placeholder="L5"
+                                            value={lineFormData.line_code}
+                                            onChange={(e) => setLineFormData({ ...lineFormData, line_code: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Tổng khoảng cách (km) *</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0"
+                                            value={lineFormData.total_distance}
+                                            onChange={(e) => setLineFormData({ ...lineFormData, total_distance: parseFloat(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Tổng số ga *</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0"
+                                            value={lineFormData.total_stations}
+                                            onChange={(e) => setLineFormData({ ...lineFormData, total_stations: parseInt(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <Button className="flex-1" onClick={handleSaveLine}>
+                                        {editingLine ? 'Cập nhật' : 'Thêm tuyến'}
+                                    </Button>
+                                    <Button variant="outline" className="flex-1" onClick={() => setShowLineModal(false)}>
+                                        Hủy
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Station Modal */}
+            {showStationModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold">
+                                    {editingStation ? 'Sửa ga' : 'Thêm ga mới'}
+                                </h2>
+                                <button onClick={() => setShowStationModal(false)}>
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Tên ga *</Label>
+                                        <Input
+                                            placeholder="Ga Quần Ngựa"
+                                            value={stationFormData.station_name}
+                                            onChange={(e) => setStationFormData({ ...stationFormData, station_name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Mã ga *</Label>
+                                        <Input
+                                            placeholder="L5-01"
+                                            value={stationFormData.station_code}
+                                            onChange={(e) => setStationFormData({ ...stationFormData, station_code: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Thứ tự *</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="1"
+                                            value={stationFormData.station_order}
+                                            onChange={(e) => setStationFormData({ ...stationFormData, station_order: parseInt(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Tuyến *</Label>
+                                        <select
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            value={stationFormData.line_id}
+                                            onChange={(e) => setStationFormData({ ...stationFormData, line_id: e.target.value })}
+                                        >
+                                            <option value="">Chọn tuyến</option>
+                                            {lines.map((line) => (
+                                                <option key={line._id} value={line._id}>
+                                                    {line.line_name} ({line.line_code})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Vị trí</Label>
+                                    <Input
+                                        placeholder="Địa chỉ ga"
+                                        value={stationFormData.location}
+                                        onChange={(e) => setStationFormData({ ...stationFormData, location: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Loại ga</Label>
+                                    <select
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        value={stationFormData.station_type}
+                                        onChange={(e) => setStationFormData({ ...stationFormData, station_type: e.target.value as any })}
+                                    >
+                                        <option value="underground">Ngầm</option>
+                                        <option value="elevated">Trên cao</option>
+                                        <option value="ground">Mặt đất</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <Button className="flex-1" onClick={handleSaveStation}>
+                                        {editingStation ? 'Cập nhật' : 'Thêm ga'}
+                                    </Button>
+                                    <Button variant="outline" className="flex-1" onClick={() => setShowStationModal(false)}>
+                                        Hủy
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }
