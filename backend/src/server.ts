@@ -4,6 +4,7 @@ import "./config/env";
 import http from "http";
 import app from "./app";
 import { connectDatabase, disconnectDatabase } from "./config/db";
+import { connectRedis } from "./config/redis";
 import { initSocket } from "./config/socket";
 
 const PORT = process.env.PORT || 4000;
@@ -25,6 +26,9 @@ async function start() {
     // ─── Connect Database ─────────────────────────────────────────────────────
     await connectDatabase();
     console.log("✅ Database connected successfully");
+
+    // ─── Connect Redis ────────────────────────────────────────────────────────
+    await connectRedis();
 
     // ─── Create HTTP Server ───────────────────────────────────────────────────
     const httpServer = http.createServer(app);

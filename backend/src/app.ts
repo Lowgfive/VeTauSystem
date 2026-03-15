@@ -14,6 +14,7 @@ import routerSearch from "./routes/search.route";
 import routerTrain from "./routes/train.route";
 import routerTicket from "./routes/ticket.route";
 import routerBooking from "./routes/booking.route";
+import routerSeat from "./routes/seat.route";
 import routerSchedule from "./routes/schedule.route";
 import routerTemplate from "./routes/template.route";
 
@@ -85,6 +86,7 @@ app.use("/api/v1/schedules", routerSchedule);
 app.use("/api/v1/trains", routerTrain);
 app.use("/api/v1/tickets", routerTicket);
 app.use("/api/v1/bookings", routerBooking);
+app.use("/api/v1/seats", routerSeat);
 app.use("/api/v1/templates", routerTemplate);
 
 app.use("/api/v1/lines", routerLine);

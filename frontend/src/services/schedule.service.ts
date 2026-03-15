@@ -9,6 +9,21 @@ export async function fetchSchedules(params: {
   return res.data;
 }
 
+export async function searchSchedules(
+  departureCode: string,
+  arrivalCode: string,
+  date: string,
+  returnDate?: string
+) {
+  const res = await apiClient.post("/schedules", {
+    departureCode,
+    arrivalCode,
+    date,
+    returndate: returnDate,
+  });
+  return res.data;
+}
+
 export async function fetchCarriages(scheduleId: string) {
   const res = await apiClient.get(`/schedules/${scheduleId}/carriages`);
   return res.data;

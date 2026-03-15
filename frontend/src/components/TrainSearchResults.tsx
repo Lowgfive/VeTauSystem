@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Train, MapPin, Clock, Calendar, Users, ChevronRight, 
   Filter, X, Sliders, DollarSign, Armchair, SlidersHorizontal,
@@ -11,42 +12,96 @@ import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 import { Slider } from './ui/slider';
-import { Schedule } from '../types';
-import { seatTypes } from '../data/mockData';
+import { Schedule, SearchParams } from '../types';
+import { stations, seatTypes } from '../data/mockData';
+import { searchSchedules } from '../services/schedule.service';
+
+interface Trip {
+  train_id: string;
+  departure_station: string;
+  arrival_station: string;
+  departure_time: string;
+  arrival_time: string;
+  distance: number;
+  duration: number;
+  price: number;
+}
+
+interface SearchResponse {
+  success: boolean;
+  message: string;
+  data: {
+    departureTrips: Trip[];
+    returnTrips: Trip[];
+  };
+}
 
 interface TrainSearchResultsProps {
-  schedules: Schedule[];
-  searchParams: {
-    originName: string;
-    destinationName: string;
-    date: string;
-  };
-  onSelectTrain: (schedule: Schedule) => void;
   onBack: () => void;
 }
 
 export function TrainSearchResults({ 
-  schedules, 
-  searchParams, 
-  onSelectTrain,
   onBack 
 }: TrainSearchResultsProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const defaultParams: SearchParams = {
+    originId: 'unknown',
+    destinationId: 'unknown',
+    date: new Date().toISOString().split('T')[0],
+  };
+
+  const params: SearchParams = location.state?.searchParams || defaultParams;
+
+  // Map station IDs to actual station names for API payload
+  const departureCode = stations.find((s) => s.id === params.originId)?.name || params.originId;
+  const arrivalCode = stations.find((s) => s.id === params.destinationId)?.name || params.destinationId;
+
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Filter states
   const [selectedTimeRanges, setSelectedTimeRanges] = useState<string[]>([]);
   const [selectedSeatClasses, setSelectedSeatClasses] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 3000000]);
 
-  // Calculate price range from schedules
+  // Load data on mount or when searchParams change
+  useEffect(() => {
+    const loadSchedules = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await searchSchedules(
+          departureCode,
+          arrivalCode,
+          params.date
+        );
+        setSearchResponse(response);
+      } catch (err) {
+        setError('Không thể tải dữ liệu chuyến tàu. Vui lòng thử lại.');
+        console.error('Search error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSchedules();
+  }, [params]);
+
+  const trips = searchResponse?.data?.departureTrips || [];
+
+  // Calculate price range from trips
   const { minPrice, maxPrice } = useMemo(() => {
-    if (schedules.length === 0) return { minPrice: 0, maxPrice: 3000000 };
-    const prices = schedules.map(s => s.basePrice);
+    if (trips.length === 0) return { minPrice: 0, maxPrice: 3000000 };
+    const prices = trips.map(t => t.price);
     return {
       minPrice: Math.min(...prices),
-      maxPrice: Math.max(...prices) * 2.5 // Account for seat type multipliers
+      maxPrice: Math.max(...prices)
     };
-  }, [schedules]);
+  }, [trips]);
 
   // Time ranges
   const timeRanges = [
@@ -56,12 +111,12 @@ export function TrainSearchResults({
     { id: 'evening', label: 'Buổi tối (18:00 - 24:00)', start: 18, end: 24 }
   ];
 
-  // Filter schedules
-  const filteredSchedules = useMemo(() => {
-    return schedules.filter(schedule => {
+  // Filter trips
+  const filteredTrips = useMemo(() => {
+    return trips.filter(trip => {
       // Time filter
       if (selectedTimeRanges.length > 0) {
-        const hour = parseInt(schedule.departureTime.split(':')[0]);
+        const hour = parseInt(trip.departure_time.split(':')[0]);
         const matchesTime = selectedTimeRanges.some(rangeId => {
           const range = timeRanges.find(r => r.id === rangeId);
           return range && hour >= range.start && hour < range.end;
@@ -69,24 +124,14 @@ export function TrainSearchResults({
         if (!matchesTime) return false;
       }
 
-      // Seat class filter
-      if (selectedSeatClasses.length > 0) {
-        const hasMatchingSeat = schedule.train.carriages.some(carriage =>
-          selectedSeatClasses.includes(carriage.type)
-        );
-        if (!hasMatchingSeat) return false;
-      }
-
       // Price filter
-      const lowestPrice = schedule.basePrice;
-      const highestPrice = schedule.basePrice * 2.5;
-      if (highestPrice < priceRange[0] || lowestPrice > priceRange[1]) {
+      if (trip.price < priceRange[0] || trip.price > priceRange[1]) {
         return false;
       }
 
       return true;
     });
-  }, [schedules, selectedTimeRanges, selectedSeatClasses, priceRange, timeRanges]);
+  }, [trips, selectedTimeRanges, priceRange, timeRanges]);
 
   const toggleTimeRange = (rangeId: string) => {
     setSelectedTimeRanges(prev =>
@@ -257,19 +302,23 @@ export function TrainSearchResults({
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-primary" />
-                <span className="font-bold text-lg">{searchParams.originName}</span>
+                <span className="font-bold text-lg">
+                    {trips[0]?.departure_station || departureCode}
+                </span>
               </div>
               <ArrowRight className="w-5 h-5 text-gray-400" />
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-secondary" />
-                <span className="font-bold text-lg">{searchParams.destinationName}</span>
+                <span className="font-bold text-lg">
+                    {trips[0]?.arrival_station || arrivalCode}
+                </span>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-gray-600">
                 <Calendar className="w-4 h-4" />
-                <span className="text-sm">{formatDate(searchParams.date)}</span>
+                <span className="text-sm">{formatDate(params.date)}</span>
               </div>
               
               <Button
@@ -322,7 +371,7 @@ export function TrainSearchResults({
                       className="w-full bg-primary hover:bg-primary-hover"
                       onClick={() => setMobileFiltersOpen(false)}
                     >
-                      Áp dụng ({filteredSchedules.length} kết quả)
+                      Áp dụng ({filteredTrips.length} kết quả)
                     </Button>
                   </div>
                 </div>
@@ -332,172 +381,173 @@ export function TrainSearchResults({
 
           {/* Results */}
           <main className="space-y-4">
-            {/* Results Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">
-                Tìm thấy {filteredSchedules.length} chuyến tàu
-              </h2>
-              {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="hidden md:flex">
-                  {activeFilterCount} bộ lọc đang áp dụng
-                </Badge>
-              )}
-            </div>
-
-            {/* Train Cards */}
-            {filteredSchedules.length === 0 ? (
+            {loading ? (
               <Card className="p-12 text-center">
-                <Train className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">Đang tìm chuyến tàu...</p>
+              </Card>
+            ) : error ? (
+              <Card className="p-12 text-center">
+                <X className="w-16 h-16 text-red-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Không tìm thấy chuyến tàu
+                  Lỗi tải dữ liệu
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  Vui lòng thử điều chỉnh bộ lọc hoặc tìm kiếm lại
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={clearAllFilters}
-                  disabled={activeFilterCount === 0}
-                >
-                  Xóa bộ lọc
-                </Button>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()}>Thử lại</Button>
               </Card>
             ) : (
-              filteredSchedules.map((schedule) => {
-                const lowestPrice = schedule.basePrice;
-                const availableSeatTypes = Array.from(
-                  new Set(schedule.train.carriages.map(c => c.type))
-                );
+              <>
+                {/* Results Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Tìm thấy {filteredTrips.length} chuyến tàu
+                  </h2>
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="hidden md:flex">
+                      {activeFilterCount} bộ lọc đang áp dụng
+                    </Badge>
+                  )}
+                </div>
 
-                return (
-                  <Card
-                    key={schedule.id}
-                    className="p-6 hover:shadow-railway-lg transition-all border-2 hover:border-primary/20"
-                  >
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-6">
-                      {/* Train Info */}
-                      <div className="space-y-4">
-                        {/* Train Header */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-3 bg-primary/10 rounded-xl">
-                              <Train className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-lg text-gray-900">
-                                  {schedule.train.code}
-                                </h3>
-                                <Badge variant="secondary" className="text-xs">
-                                  {schedule.train.name}
-                                </Badge>
+                {/* Train Cards */}
+                {filteredTrips.length === 0 ? (
+                  <Card className="p-12 text-center">
+                    <Train className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Không tìm thấy chuyến tàu
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Vui lòng thử điều chỉnh bộ lọc hoặc tìm kiếm lại
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={clearAllFilters}
+                      disabled={activeFilterCount === 0}
+                    >
+                      Xóa bộ lọc
+                    </Button>
+                  </Card>
+                ) : (
+                  filteredTrips.map((trip) => {
+                    const lowestPrice = trip.price;
+
+                    return (
+                      <Card
+                        key={trip.train_id}
+                        className="p-6 hover:shadow-railway-lg transition-all border-2 hover:border-primary/20"
+                      >
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-6">
+                          {/* Train Info */}
+                          <div className="space-y-4">
+                            {/* Train Header */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="p-3 bg-primary/10 rounded-xl">
+                                  <Train className="w-6 h-6 text-primary" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-lg text-gray-900">
+                                      {trip.train_id}
+                                    </h3>
+                                    <Badge variant="secondary" className="text-xs">
+                                      Tàu {trip.train_id}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-gray-600">
+                                    {trip.duration}h
+                                  </p>
+                                </div>
                               </div>
-                              <p className="text-sm text-gray-600">
-                                {schedule.duration}
-                              </p>
                             </div>
-                          </div>
-                        </div>
 
-                        {/* Route and Time */}
-                        <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
-                          {/* Departure */}
-                          <div>
-                            <div className="text-3xl font-bold text-gray-900 mb-1">
-                              {schedule.departureTime}
+                            {/* Route and Time */}
+                            <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
+                              {/* Departure */}
+                              <div>
+                                <div className="text-3xl font-bold text-gray-900 mb-1">
+                                  {trip.departure_time}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {trip.departure_station}
+                                </div>
+                              </div>
+
+                              {/* Duration */}
+                              <div className="flex flex-col items-center px-4">
+                                <div className="flex items-center gap-2 text-gray-400 mb-1">
+                                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                  <div className="h-px w-16 bg-gray-300"></div>
+                                  <ArrowRight className="w-4 h-4" />
+                                  <div className="h-px w-16 bg-gray-300"></div>
+                                  <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                                </div>
+                                <span className="text-xs text-gray-500 whitespace-nowrap">
+                                  {trip.duration}h
+                                </span>
+                              </div>
+
+                              {/* Arrival */}
+                              <div className="text-right">
+                                <div className="text-3xl font-bold text-gray-900 mb-1">
+                                  {trip.arrival_time}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {trip.arrival_station}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600">
-                              {schedule.origin.name}
+
+                            <Separator />
+
+                            {/* Additional Info */}
+                            <div className="flex flex-wrap gap-4">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Users className="w-4 h-4 text-gray-400" />
+                                <span className="text-gray-600">
+                                  Khoảng cách: {trip.distance} km
+                                </span>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Duration */}
-                          <div className="flex flex-col items-center px-4">
-                            <div className="flex items-center gap-2 text-gray-400 mb-1">
-                              <div className="w-2 h-2 bg-primary rounded-full"></div>
-                              <div className="h-px w-16 bg-gray-300"></div>
-                              <ArrowRight className="w-4 h-4" />
-                              <div className="h-px w-16 bg-gray-300"></div>
-                              <div className="w-2 h-2 bg-secondary rounded-full"></div>
-                            </div>
-                            <span className="text-xs text-gray-500 whitespace-nowrap">
-                              {schedule.duration}
-                            </span>
-                          </div>
-
-                          {/* Arrival */}
-                          <div className="text-right">
-                            <div className="text-3xl font-bold text-gray-900 mb-1">
-                              {schedule.arrivalTime}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {schedule.destination.name}
-                            </div>
-                          </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Additional Info */}
-                        <div className="flex flex-wrap gap-4">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Users className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">
-                              Còn <strong className="text-primary">{schedule.availableSeats}</strong> chỗ
-                            </span>
-                          </div>
-                          
-                          {/* Amenities */}
-                          {schedule.train.amenities.slice(0, 3).map((amenity, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {amenity === 'Wifi' && <Wifi className="w-3 h-3 mr-1" />}
-                              {amenity}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        {/* Available Seat Types */}
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-sm text-gray-600">Loại ghế:</span>
-                          {availableSeatTypes.map(seatTypeId => {
-                            const seatType = seatTypes.find(st => st.id === seatTypeId);
-                            return seatType ? (
+                            {/* Available Seat Types - Placeholder */}
+                            <div className="flex flex-wrap gap-2">
+                              <span className="text-sm text-gray-600">Loại ghế:</span>
                               <Badge
-                                key={seatTypeId}
                                 className="bg-primary/10 text-primary border-primary/20 text-xs"
                               >
-                                {seatType.name}
+                                Ghế mềm
                               </Badge>
-                            ) : null;
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Price and Action */}
-                      <div className="flex flex-col justify-between items-end gap-4 min-w-[200px]">
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600 mb-1">Giá từ</p>
-                          <div className="text-3xl font-bold text-primary mb-1">
-                            {formatPrice(lowestPrice)}
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-500">
-                            (Chưa bao gồm loại ghế)
-                          </p>
-                        </div>
 
-                        <Button
-                          size="lg"
-                          onClick={() => onSelectTrain(schedule)}
-                          className="w-full bg-primary hover:bg-primary-hover text-white font-semibold shadow-lg hover:shadow-xl transition-all group"
-                        >
-                          Chọn chuyến
-                          <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })
+                          {/* Price and Action */}
+                          <div className="flex flex-col justify-between items-end gap-4 min-w-[200px]">
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600 mb-1">Giá vé</p>
+                              <div className="text-3xl font-bold text-primary mb-1">
+                                {formatPrice(lowestPrice)}
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                (Giá cơ bản)
+                              </p>
+                            </div>
+
+                            <Button
+                              size="lg"
+                              onClick={() => navigate('/booking', { state: { trip } })}
+                              className="w-full bg-primary hover:bg-primary-hover text-white font-semibold shadow-lg hover:shadow-xl transition-all group"
+                            >
+                              Chọn chuyến
+                              <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </>
             )}
           </main>
         </div>
