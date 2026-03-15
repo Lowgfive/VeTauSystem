@@ -38,8 +38,8 @@ export const getAllTrains = async (_req: Request, res: Response, next: NextFunct
 // Lấy chi tiết 1 tàu (kèm danh sách toa)
 export const getTrainById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
         const result = await trainService.getTrainById(id);
@@ -55,8 +55,8 @@ export const getTrainById = async (req: Request, res: Response, next: NextFuncti
 // Cập nhật thông tin tàu
 export const updateTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
         const train = await trainService.updateTrain(id, req.body);
@@ -76,8 +76,8 @@ export const updateTrain = async (req: Request, res: Response, next: NextFunctio
 // Xóa tàu (soft delete)
 export const deleteTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
         const result = await trainService.deleteTrain(id);
@@ -101,8 +101,8 @@ export const getSeatsByCarriage = async (req: Request, res: Response, next: Next
 
 export const getSeatMap = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
 
@@ -113,8 +113,50 @@ export const getSeatMap = async (req: Request, res: Response, next: NextFunction
         }
 
         const result = await trainService.getSeatsByTrain(id);
-        res.status(200).json({ success: true, data: result });
-    } catch (error) {
-        next(error);
+
+        // Đảm bảo response có đúng format
+        if (!result || typeof result !== 'object') {
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi khi lấy dữ liệu sơ đồ ghế"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                carriages: result.carriages || [],
+                seatsByCarriage: result.seatsByCarriage || {}
+            }
+        });
+    } catch (error: any) {
+        console.error("Error in getSeatMap controller:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Lỗi server khi lấy sơ đồ ghế"
+        });
+    }
+};
+
+// Generate toa và ghế cho tàu đã tồn tại
+export const generateCarriagesForTrain = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
+        }
+
+        const result = await trainService.generateCarriagesAndSeatsForExistingTrain(id);
+        res.status(200).json({
+            success: true,
+            message: result.message || "Đã tạo toa và ghế thành công",
+            data: result
+        });
+    } catch (error: any) {
+        console.error("Error generating carriages:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Lỗi khi tạo toa và ghế"
+        });
     }
 };

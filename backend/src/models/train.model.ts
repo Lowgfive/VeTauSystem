@@ -23,6 +23,16 @@ const trainSchema = new Schema<ITrain>(
 
         total_carriages: { type: Number },
 
+        capacity: { type: Number },
+
+        max_speed: { type: Number },
+
+        amenities: { type: [String], default: [] },
+
+        is_active: { type: Boolean, default: true },
+
+        template_id: { type: Schema.Types.ObjectId, ref: "TrainTemplate" },
+
         status: { type: String, enum: ["active", "inactive"], default: "active" }
 
     },
