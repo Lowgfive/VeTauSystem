@@ -21,4 +21,12 @@ export async function fetchSeats(scheduleId: string, carriageId: string) {
   return res.data;
 }
 
-
+export async function searchSchedules(data: {
+  departureCode: string;
+  arrivalCode: string;
+  date: string;
+  returndate?: string;
+}) {
+  const res = await apiClient.post("/schedules", data);
+  return res.data;
+}

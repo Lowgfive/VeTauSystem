@@ -101,9 +101,14 @@ export function Homepage({
       return;
     }
 
+    const originStation = stations.find(s => s.id === originId);
+    const destinationStation = stations.find(s => s.id === destinationId);
+
     const searchParams = {
       originId,
       destinationId,
+      originName: originStation?.name || "",
+      destinationName: destinationStation?.name || "",
       date: departureDate,
       returnDate: isRoundTrip ? returnDate : undefined,
     };

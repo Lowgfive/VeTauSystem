@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { getProfile, updateProfile, UpdateProfileInput } from "../services/user.service";
 import { Footer } from "../components/Footer";
 
@@ -9,7 +10,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "../components/ui/card";
 import { toast } from "sonner";
-import { Loader2, User as UserIcon } from "lucide-react";
+import { Loader2, User as UserIcon, ArrowLeft } from "lucide-react";
 
 interface ProfileFormData {
   name: string;
@@ -19,6 +20,7 @@ interface ProfileFormData {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -86,13 +88,25 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-zinc-900 pb-20">
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <UserIcon className="w-6 h-6 text-primary" />
+          <div className="flex flex-col space-y-4 mb-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="w-fit -ml-2 text-gray-600 hover:text-primary"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <UserIcon className="w-6 h-6 text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                Hồ sơ cá nhân
+              </h1>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-              Hồ sơ cá nhân
-            </h1>
           </div>
 
           <Card className="border-none shadow-md overflow-hidden dark:bg-zinc-800">

@@ -1,4 +1,4 @@
-﻿import {Schedule} from "../models/schedule.model";
+import {Schedule} from "../models/schedule.model";
 import {Train} from "../models/train.model";
 import {Route} from "../models/route.model";
 import {Station} from "../models/station.model";
@@ -16,6 +16,14 @@ export default class ScheduleService {
 
     const train = await Train.findById(trainId);
     if (!train) throw new Error("Train not found");
+
+    // Xóa các lịch trình trong tương lai của tàu này trước khi sinh mới để tránh trùng lặp
+    const now = new Date();
+    await Schedule.deleteMany({ 
+      train_id: trainId, 
+      date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+      status: 'SCHEDULED' // Chỉ xóa những cái chưa chạy hoặc chưa bị tác động
+    });
 
     const stations = await Station.find().sort({ station_order: 1 });
     const routes = await Route.find();
@@ -75,7 +83,7 @@ export default class ScheduleService {
       const route = routeMap.get(routeKey);
 
       if (!route) {
-        console.log("missing route", routeKey);
+        console.error(`Dừng sinh lịch: Thiếu lộ trình giữa [${currentStation.station_name}] và [${nextStation.station_name}]. Vui lòng cấu hình lộ trình này.`);
         break;
       }
 
@@ -113,5 +121,33 @@ export default class ScheduleService {
 
     console.log(schedules)
     return schedules.length;
+  }
+
+  // --- MỚI THÊM VÀO ĐỂ FIX API MAIN BRANCH ---
+  
+  static async getAllSchedules() {
+    const schedules = await Schedule.find()
+      .populate("train_id")
+      .populate({
+        path: "route_id",
+        populate: [
+          { path: "departure_station_id" },
+          { path: "arrival_station_id" }
+        ]
+      })
+      .sort({ date: 1, departure_time: 1 });
+    return schedules;
+  }
+
+  static async updateSchedule(id: string, updateData: Partial<typeof Schedule>) {
+    const updated = await Schedule.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+    if (!updated) {
+      throw new Error("Không tìm thấy chuyến tàu (Schedule not found)");
+    }
+    return updated;
   }
 }
