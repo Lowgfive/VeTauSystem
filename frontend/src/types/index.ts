@@ -28,7 +28,7 @@ export interface Line {
   is_active: boolean;
 }
 
-export type SeatType = 'seat' | 'priority' | 'standing';
+export type SeatType = 'hard_seat' | 'soft_seat' | 'sleeper_6' | 'sleeper_4' | 'vip_sleeper_2';
 
 export interface SeatTypeInfo {
   id: SeatType;

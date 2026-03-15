@@ -18,46 +18,39 @@ export const stations: Station[] = [
 // Loại ghế và giá
 export const seatTypes: SeatTypeInfo[] = [
   {
-    id: 'ngoi-cung',
+    id: 'hard_seat',
     name: 'Ngồi cứng',
     description: 'Ghế ngồi cứng, tiết kiệm',
     priceMultiplier: 1.0,
     icon: 'chair'
   },
   {
-    id: 'ngoi-mem',
-    name: 'Ngồi mềm',
+    id: 'soft_seat',
+    name: 'Ngồi mềm điều hòa',
     description: 'Ghế ngồi mềm có điều hòa',
     priceMultiplier: 1.3,
     icon: 'armchair'
   },
   {
-    id: 'nam-cung',
-    name: 'Nằm cứng',
+    id: 'sleeper_6',
+    name: 'Giường nằm khoang 6',
     description: 'Giường nằm cứng 6 người/khoang',
     priceMultiplier: 1.5,
     icon: 'bed'
   },
   {
-    id: 'nam-mem',
-    name: 'Nằm mềm',
+    id: 'sleeper_4',
+    name: 'Giường nằm khoang 4',
     description: 'Giường nằm mềm 4 người/khoang',
     priceMultiplier: 2.0,
     icon: 'bed-double'
   },
   {
-    id: 'nam-khoang-4',
-    name: 'Nằm khoang 4 VIP',
-    description: 'Khoang VIP 4 giường có điều hòa',
+    id: 'vip_sleeper_2',
+    name: 'Giường nằm khoang 2 VIP',
+    description: 'Khoang VIP 2 giường có điều hòa',
     priceMultiplier: 2.5,
     icon: 'hotel'
-  },
-  {
-    id: 'nam-khoang-6',
-    name: 'Nằm khoang 6',
-    description: 'Khoang 6 giường điều hòa',
-    priceMultiplier: 1.7,
-    icon: 'bed'
   }
 ];
 
@@ -132,12 +125,11 @@ export const trains: Train[] = [
 // Tạo toa tàu cho mỗi tàu
 function generateCarriages(trainId: string): Carriage[] {
   const carriageTypes = [
-    { type: 'ngoi-cung' as const, count: 2, seatsPerCarriage: 64 },
-    { type: 'ngoi-mem' as const, count: 2, seatsPerCarriage: 64 },
-    { type: 'nam-cung' as const, count: 2, seatsPerCarriage: 42 },
-    { type: 'nam-mem' as const, count: 2, seatsPerCarriage: 28 },
-    { type: 'nam-khoang-4' as const, count: 1, seatsPerCarriage: 24 },
-    { type: 'nam-khoang-6' as const, count: 1, seatsPerCarriage: 36 }
+    { type: 'hard_seat' as const, count: 2, seatsPerCarriage: 64 },
+    { type: 'soft_seat' as const, count: 2, seatsPerCarriage: 64 },
+    { type: 'sleeper_6' as const, count: 2, seatsPerCarriage: 42 },
+    { type: 'sleeper_4' as const, count: 2, seatsPerCarriage: 28 },
+    { type: 'vip_sleeper_2' as const, count: 1, seatsPerCarriage: 14 }
   ];
 
   const carriages: Carriage[] = [];
@@ -145,13 +137,13 @@ function generateCarriages(trainId: string): Carriage[] {
 
   carriageTypes.forEach(({ type, count, seatsPerCarriage }) => {
     for (let i = 0; i < count; i++) {
-      const layout = type.includes('ngoi') 
+      const layout = type.includes('seat')
         ? { rows: 16, cols: 4 }
-        : type === 'nam-khoang-4'
-        ? { rows: 6, cols: 4 }
-        : type === 'nam-khoang-6'
-        ? { rows: 6, cols: 6 }
-        : { rows: 7, cols: 6 };
+        : type === 'sleeper_4'
+          ? { rows: 7, cols: 4 }
+          : type === 'sleeper_6'
+            ? { rows: 7, cols: 6 }
+            : { rows: 7, cols: 2 };
 
       carriages.push({
         id: `${trainId}-c${carriageNumber}`,
@@ -184,7 +176,7 @@ export function generateSeatsForCarriage(carriage: Carriage): Seat[] {
     for (let col = 0; col < cols; col++) {
       const seatNumber = `${carriage.number}${String.fromCharCode(65 + col)}${row + 1}`;
       const isBooked = Math.random() < bookedPercentage;
-      
+
       seats.push({
         id: `${carriage.id}-${seatNumber}`,
         number: seatNumber,
@@ -202,13 +194,13 @@ export function generateSeatsForCarriage(carriage: Carriage): Seat[] {
 // Tạo lịch trình
 function generateSchedules(date: string): Schedule[] {
   const schedules: Schedule[] = [];
-  
+
   // Tàu Hà Nội - Sài Gòn (SE1, SE3, SE5)
   const northToSouthTrains = ['se1', 'se3', 'se5'];
   northToSouthTrains.forEach((trainId, index) => {
     const train = trains.find(t => t.id === trainId)!;
     const departureHour = 6 + index * 6;
-    
+
     schedules.push({
       id: `${trainId}-${date}`,
       trainId,
@@ -232,7 +224,7 @@ function generateSchedules(date: string): Schedule[] {
   southToNorthTrains.forEach((trainId, index) => {
     const train = trains.find(t => t.id === trainId)!;
     const departureHour = 7 + index * 6;
-    
+
     schedules.push({
       id: `${trainId}-${date}`,
       trainId,

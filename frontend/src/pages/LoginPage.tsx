@@ -15,7 +15,12 @@ export default function LoginPageWrapper() {
       const { token, user } = res.data.data;
       dispatch(loginSuccess({ token, user }));
       toast.success("Đăng nhập thành công!");
-      navigate("/");
+      // Redirect admin to admin dashboard, regular users to home
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Email hoặc mật khẩu không đúng";
       toast.error(msg);

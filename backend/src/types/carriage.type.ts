@@ -2,11 +2,11 @@ import { Types, Document } from "mongoose";
 
 // ─── Loại chỗ ngồi trên toa tàu ──────────────────────────────────────────────
 export type SeatType =
-    | "seat"       // Ghế ngồi thường
-    | "priority"   // Ghế ưu tiên (người già, khuyết tật, phụ nữ mang thai)
-    | "standing"   // Khu vực đứng
-    | "business"   // Hạng thương gia
-    | "economy";    // Hạng phổ thông (nếu phân tách với seat thường)
+    | "hard_seat"     // Ghế cứng
+    | "soft_seat"     // Ghế mềm
+    | "sleeper_6"     // Giường nằm khoang 6
+    | "sleeper_4"     // Giường nằm khoang 4
+    | "vip_sleeper_2"; // Giường VIP khoang 2
 
 // ─── Layout mô tả cách bố trí ghế trong toa tàu ─────────────────────────────
 export interface CarriageLayout {

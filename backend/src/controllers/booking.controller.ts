@@ -14,11 +14,11 @@ const generateBookingCode = (): string => {
 
 const DISCOUNT_RATES = {
     adult: 0,
-    child: 0.30,   
-    senior: 0.20,   
-    disabled: 0.50,  
+    child: 0.30,
+    senior: 0.20,
+    disabled: 0.50,
 };
-const TAX_RATE = 0.10; 
+const TAX_RATE = 0.10;
 
 export const calculateFareDetails = (basePrice: number, passengerType: "adult" | "child" | "senior" | "disabled" = "adult") => {
     const discountRate = DISCOUNT_RATES[passengerType] || 0;
@@ -48,7 +48,7 @@ export const calculateFare = asyncHandler(async (req: AuthRequest, res: Response
         return res.status(404).json({ success: false, message: "Không tìm thấy ghế" });
     }
 
-    const fareDetails = calculateFareDetails(seat.price, passenger_type || "adult");
+    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type || "adult");
 
     res.status(200).json({
         success: true,
@@ -77,13 +77,13 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
     if (seat.status === "booked") {
         return res.status(409).json({ success: false, message: "Ghế đã được đặt" });
     }
-    
-    if (seat.schedule_id.toString() !== schedule_id) {
+
+    if (seat.schedule_id && seat.schedule_id.toString() !== schedule_id) {
         return res.status(400).json({ success: false, message: "Ghế không thuộc lịch trình này" });
     }
 
     const passenger_type = req.body.passenger_type || "adult";
-    const fareDetails = calculateFareDetails(seat.price, passenger_type);
+    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type);
 
     const booking = await BookingModel.create({
         user_id: new mongoose.Types.ObjectId(userId),
@@ -131,6 +131,44 @@ export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response
     res.status(200).json({
         success: true,
         message: "Danh sách vé của bạn",
+        data: bookings,
+    });
+});
+
+// ─── Get All Bookings (Admin) ──────────────────────────────────────────────────
+// GET /api/v1/bookings/all
+// Requires: Authorization header with Bearer token (Admin only)
+
+export const getAllBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const bookings = await BookingModel.find()
+        .populate({
+            path: "user_id",
+            select: "name email phone"
+        })
+        .populate({
+            path: "schedule_id",
+            populate: [
+                { path: "train_id" },
+                {
+                    path: "route_id",
+                    populate: [
+                        { path: "departure_station_id" },
+                        { path: "arrival_station_id" }
+                    ]
+                }
+            ]
+        })
+        .populate({
+            path: "seat_id",
+            populate: {
+                path: "carriage_id"
+            }
+        })
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({
+        success: true,
+        message: "Danh sách tất cả vé",
         data: bookings,
     });
 });
@@ -206,7 +244,7 @@ export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Respons
     // Update booking
     booking.schedule_id = new mongoose.Types.ObjectId(new_schedule_id);
     booking.seat_id = new mongoose.Types.ObjectId(new_seat_id);
-    booking.price = newSeat.price;
+    booking.price = newSeat.price ?? 0;
     booking.status = "changed";
     await booking.save();
 

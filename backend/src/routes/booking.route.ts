@@ -3,6 +3,7 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 import {
     bookTicket,
     getMyBookings,
+    getAllBookings,
     refundTicket,
     changeSchedule,
     calculateFare,
@@ -20,6 +21,9 @@ router.post("/book", bookTicket);
 
 // GET /api/v1/bookings/my-bookings
 router.get("/my-bookings", getMyBookings);
+
+// GET /api/v1/bookings/all (Admin - Get all bookings)
+router.get("/all", getAllBookings);
 
 // POST /api/v1/bookings/refund/:bookingId
 router.post("/refund/:bookingId", refundTicket);
