@@ -6,7 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Train as TrainIcon, CalendarClock, PenLine, Ban } from 'lucide-react';
+import { Loader2, Train as TrainIcon, CalendarClock, PenLine, Ban, Eye, X } from 'lucide-react';
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import {
   Dialog,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { format } from 'date-fns';
+import { SeatMap } from '../SeatMap';
 
 const API_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
@@ -31,11 +32,11 @@ export function ScheduleManagement() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [trains, setTrains] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Generating state
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTrainForGen, setSelectedTrainForGen] = useState<string>('');
-  
+
   // Edit modal state
   const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({
@@ -43,6 +44,13 @@ export function ScheduleManagement() {
     arrival_time: '',
     status: 'SCHEDULED'
   });
+
+  // Seat map modal state
+  const [showSeatMapModal, setShowSeatMapModal] = useState(false);
+  const [selectedScheduleForMap, setSelectedScheduleForMap] = useState<any | null>(null);
+  const [seatMapCarriages, setSeatMapCarriages] = useState<any[]>([]);
+  const [seatMapSeatsByCarriage, setSeatMapSeatsByCarriage] = useState<Record<string, any[]>>({});
+  const [loadingSeatMap, setLoadingSeatMap] = useState(false);
 
   useEffect(() => {
     fetchSchedules();
@@ -75,14 +83,14 @@ export function ScheduleManagement() {
       toast.error('Vui lòng chọn tàu để tạo lịch');
       return;
     }
-    
+
     try {
       setIsGenerating(true);
       const res = await axios.post(`${API_URL}/schedules/auto-generate`, {
         trainId: selectedTrainForGen,
         maxDays: 30
       });
-      
+
       toast.success(res.data.message || 'Khởi tạo lịch thành công');
       fetchSchedules();
     } catch (error: any) {
@@ -139,6 +147,26 @@ export function ScheduleManagement() {
     'MAINTENANCE': 'Bảo trì',
   };
 
+  const handleViewSeatMap = async (sched: any) => {
+    try {
+      setSelectedScheduleForMap(sched);
+      setLoadingSeatMap(true);
+      const res = await axios.get(`${API_URL}/schedules/${sched._id}/seatmap`);
+      if (res.data?.success && res.data.data) {
+        setSeatMapCarriages(res.data.data.carriages || []);
+        setSeatMapSeatsByCarriage(res.data.data.seatsByCarriage || {});
+        setShowSeatMapModal(true);
+      } else {
+        toast.error(res.data?.message || 'Không thể tải sơ đồ ghế cho chuyến này');
+      }
+    } catch (error: any) {
+      console.error('Lỗi khi tải sơ đồ ghế:', error);
+      toast.error(error.response?.data?.message || 'Không thể tải sơ đồ ghế cho chuyến này');
+    } finally {
+      setLoadingSeatMap(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -160,8 +188,8 @@ export function ScheduleManagement() {
               ))}
             </SelectContent>
           </Select>
-          <Button 
-            onClick={handleGenerateSchedules} 
+          <Button
+            onClick={handleGenerateSchedules}
             disabled={isGenerating}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
@@ -212,8 +240,8 @@ export function ScheduleManagement() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="text-xs font-medium text-gray-600">
-                        {sched.route_id?.departure_station_id?.station_name || '?'} 
-                        <span className="mx-1 text-gray-400">→</span> 
+                        {sched.route_id?.departure_station_id?.station_name || '?'}
+                        <span className="mx-1 text-gray-400">→</span>
                         {sched.route_id?.arrival_station_id?.station_name || '?'}
                       </div>
                     </td>
@@ -226,9 +254,14 @@ export function ScheduleManagement() {
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <Button variant="ghost" size="sm" onClick={() => openEditModal(sched)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                        <PenLine className="w-4 h-4 mr-1" /> Cập nhật
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewSeatMap(sched)} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50">
+                          <Eye className="w-4 h-4 mr-1" /> Sơ đồ ghế
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal(sched)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                          <PenLine className="w-4 h-4 mr-1" /> Cập nhật
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -251,7 +284,7 @@ export function ScheduleManagement() {
               </DialogDescription>
             </VisuallyHidden.Root>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-3">
@@ -260,10 +293,10 @@ export function ScheduleManagement() {
                   Giờ khởi hành
                 </Label>
                 <div className="relative group">
-                  <Input 
-                    type="time" 
-                    value={editForm.departure_time} 
-                    onChange={(e) => setEditForm(prev => ({...prev, departure_time: e.target.value}))}
+                  <Input
+                    type="time"
+                    value={editForm.departure_time}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, departure_time: e.target.value }))}
                     className="pl-3 py-5 text-lg font-medium border-gray-200 focus:border-blue-500 transition-all cursor-pointer"
                   />
                 </div>
@@ -274,23 +307,23 @@ export function ScheduleManagement() {
                   Giờ đến nơi
                 </Label>
                 <div className="relative group">
-                  <Input 
-                    type="time" 
-                    value={editForm.arrival_time} 
-                    onChange={(e) => setEditForm(prev => ({...prev, arrival_time: e.target.value}))}
+                  <Input
+                    type="time"
+                    value={editForm.arrival_time}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, arrival_time: e.target.value }))}
                     className="pl-3 py-5 text-lg font-medium border-gray-200 focus:border-emerald-500 transition-all cursor-pointer"
                   />
                 </div>
               </div>
             </div>
-            
+
             <p className="text-[11px] text-muted-foreground bg-blue-50/50 p-2 rounded border border-blue-100/50 flex items-center gap-2">
               <span className="text-blue-500 font-bold">●</span> Quy tắc: Giờ đến phải sau giờ khởi hành và nằm trong cùng một ngày vận hành.
             </p>
-            
+
             <div className="space-y-2 mt-2">
               <Label>Trạng thái chuyến đi</Label>
-              <Select value={editForm.status} onValueChange={(val) => setEditForm(prev => ({...prev, status: val}))}>
+              <Select value={editForm.status} onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Trạng thái" />
                 </SelectTrigger>
@@ -303,13 +336,52 @@ export function ScheduleManagement() {
               </Select>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingSchedule(null)}>Hủy bỏ</Button>
             <Button onClick={handleUpdateSchedule} className="bg-blue-600 hover:bg-blue-700 text-white">Lưu thay đổi</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Seat Map Modal */}
+      {showSeatMapModal && selectedScheduleForMap && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <TrainIcon className="w-5 h-5 text-emerald-600" />
+                  Sơ đồ ghế - Tàu {selectedScheduleForMap.train_id?.train_code || 'N/A'}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ngày {format(new Date(selectedScheduleForMap.date), 'dd/MM/yyyy')} ·
+                  {' '}Giờ {selectedScheduleForMap.departure_time} - {selectedScheduleForMap.arrival_time} ·
+                  {' '}Tuyến {selectedScheduleForMap.route_id?.departure_station_id?.station_name || '?'} → {selectedScheduleForMap.route_id?.arrival_station_id?.station_name || '?'}
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => setShowSeatMapModal(false)} className="shrink-0">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="p-6">
+              {loadingSeatMap ? (
+                <div className="py-16 text-center text-muted-foreground">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-emerald-500" />
+                  Đang tải sơ đồ ghế...
+                </div>
+              ) : (
+                <SeatMap
+                  carriages={seatMapCarriages}
+                  seatsData={seatMapSeatsByCarriage}
+                  readOnly
+                />
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

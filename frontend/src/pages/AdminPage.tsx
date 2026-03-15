@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
-import { LineManagement } from '../components/admin/LineManagement';
 
 import { TicketManagement } from '../components/admin/TicketManagement';
 
@@ -9,7 +8,7 @@ import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports'>('trains');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
 
     const handleLogout = () => {
         // Implement logout logic
@@ -19,13 +18,9 @@ export default function AdminPage() {
         switch (activeTab) {
             case 'trains':
                 return <TrainManagement />;
-            case 'lines':
-                return <LineManagement />;
 
             case 'schedules':
                 return <ScheduleManagement />;
-            case 'dashboard':
-
             case 'tickets':
                 return <TicketManagement />;
             case 'dashboard':
