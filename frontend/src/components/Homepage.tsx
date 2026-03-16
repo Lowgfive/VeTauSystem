@@ -211,10 +211,6 @@ export function Homepage({
                 className="h-8 bg-white/30 mx-2"
               />
 
-<<<<<<< HEAD
-              {/* Admin link - Now visible for admins */}
-=======
->>>>>>> main
               {onNavigateToAdmin && (
                 <a
                   href="#"
@@ -222,11 +218,7 @@ export function Homepage({
                     e.preventDefault();
                     onNavigateToAdmin();
                   }}
-<<<<<<< HEAD
                   className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
-=======
-                  className="text-sm font-medium text-white/90 hover:text-white transition-colors"
->>>>>>> main
                 >
                   Dashboard
                 </a>
@@ -459,7 +451,6 @@ export function Homepage({
                             </SelectTrigger>
                             <SelectContent className="rounded-xl">
                               {stations.map((station) => (
-<<<<<<< HEAD
                                 <SelectItem
                                   key={station._id}
                                   value={station._id}
@@ -470,18 +461,6 @@ export function Homepage({
                                 >
                                   {station.station_name}
                                 </SelectItem>
-=======
-                <SelectItem
-                  key={station._id}
-                  value={station._id}
-                  disabled={
-                    station._id === destinationId
-                  }
-                  className="cursor-pointer"
-                >
-                  {station.station_name}
-                </SelectItem>
->>>>>>> main
                               ))}
                             </SelectContent>
                           </Select>
@@ -599,15 +578,15 @@ export function Homepage({
                       </Label>
                       <div className="relative group">
                         <Input
-                          id="departure-date"
-                          type="date"
-                          value={departureDate}
-                          onChange={(e) =>
-                            setDepartureDate(e.target.value)
-                          }
-                          min={today}
-                          required
-                          className="h-16 border-2 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 text-base rounded-xl hover:border-gray-300 transition-all shadow-sm group-hover:shadow-md bg-white"
+                           id="departure-date"
+                           type="date"
+                           value={departureDate}
+                           onChange={(e) =>
+                             setDepartureDate(e.target.value)
+                           }
+                           min={today}
+                           required
+                           className="h-16 border-2 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 text-base rounded-xl hover:border-gray-300 transition-all shadow-sm group-hover:shadow-md bg-white"
                         />
                       </div>
                       <div className="flex gap-2 flex-wrap">

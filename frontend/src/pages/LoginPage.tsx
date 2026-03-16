@@ -16,13 +16,6 @@ export default function LoginPageWrapper() {
       dispatch(loginSuccess({ token, user }));
       toast.success("Đăng nhập thành công!");
       
-<<<<<<< HEAD
-      // Short delay to ensure Redux state is updated before navigation
-      setTimeout(() => {
-        if (user.role?.toLowerCase() === "admin") {
-          navigate("/admin");
-        } else {
-=======
       // Delay navigation to ensure Redux state is updated
       setTimeout(() => {
         const role = user.role?.toLowerCase();
@@ -32,7 +25,6 @@ export default function LoginPageWrapper() {
           navigate("/admin");
         } else {
           console.log("Redirecting to /");
->>>>>>> main
           navigate("/");
         }
       }, 100);

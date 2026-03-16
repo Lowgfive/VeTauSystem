@@ -1,15 +1,10 @@
 import { ReactNode, useState } from 'react';
 import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
-<<<<<<< HEAD
-import { useAppSelector } from '../../hooks/useRedux';
-
-type AdminTab = 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
-=======
-import { useState } from 'react';
 import { useAppSelector } from '../../hooks/useRedux';
 import { RootState } from '../../store';
->>>>>>> main
+
+type AdminTab = 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -20,11 +15,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, activeTab, onTabChange, onLogout }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-<<<<<<< HEAD
-  const { user } = useAppSelector((s) => s.auth);
-=======
   const { user } = useAppSelector((s: RootState) => s.auth);
->>>>>>> main
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
@@ -122,21 +113,12 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="font-bold text-primary">
-<<<<<<< HEAD
-                  {user?.name?.substring(0, 2).toUpperCase() || "AD"}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="font-semibold">{user?.name || "Admin User"}</p>
-                <p className="text-xs text-muted-foreground">{user?.email || "admin@vnrailway.vn"}</p>
-=======
                   {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
                 </span>
               </div>
               <div className="hidden sm:block text-right">
                 <p className="font-semibold text-sm leading-none">{user?.name || 'Admin User'}</p>
                 <p className="text-xs text-muted-foreground mt-1">{user?.email || 'admin@vnrailway.vn'}</p>
->>>>>>> main
               </div>
             </div>
           </div>
