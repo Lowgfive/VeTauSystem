@@ -10,6 +10,7 @@ dist/
 !.env.example
 
 # Seeding scripts and data
+scripts/
 seed.ts
 final_seed.json
 
