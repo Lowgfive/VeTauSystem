@@ -95,12 +95,9 @@ export class SearchService {
       route_id: { $in: routeIds },
       date: { $gte: dayStart, $lte: dayEnd }
     })
-    .populate({
-      path: 'train_id',
-      populate: { path: 'line_id' }
-    })
-    .populate('route_id')
-    .lean();
+      .populate('train_id')
+      .populate('route_id')
+      .lean();
 
     if (schedules.length === 0) {
       return { trips: [], message: "Không có chuyến tàu trong ngày này" };
