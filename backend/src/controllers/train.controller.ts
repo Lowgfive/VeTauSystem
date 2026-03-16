@@ -38,12 +38,13 @@ export const getAllTrains = async (_req: Request, res: Response, next: NextFunct
 // Lấy chi tiết 1 tàu (kèm danh sách toa)
 export const getTrainById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id as string)) {
+
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
-        const result = await trainService.getTrainById(id);
+        const result = await trainService.getTrainById(id as string);
         if (!result) {
             return res.status(404).json({ success: false, message: "Không tìm thấy tàu" });
         }
@@ -56,7 +57,7 @@ export const getTrainById = async (req: Request, res: Response, next: NextFuncti
 // Cập nhật thông tin tàu
 export const updateTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const { id } = req.params;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
@@ -77,7 +78,7 @@ export const updateTrain = async (req: Request, res: Response, next: NextFunctio
 // Xóa tàu (soft delete)
 export const deleteTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const { id } = req.params;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
@@ -102,7 +103,7 @@ export const getSeatsByCarriage = async (req: Request, res: Response, next: Next
 
 export const getSeatMap = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const { id } = req.params;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
@@ -142,7 +143,7 @@ export const getSeatMap = async (req: Request, res: Response, next: NextFunction
 // Generate toa và ghế cho tàu đã tồn tại
 export const generateCarriagesForTrain = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const id = req.params.id as string;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }

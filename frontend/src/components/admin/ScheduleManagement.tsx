@@ -6,6 +6,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
+
+
 import { Loader2, Train as TrainIcon, CalendarClock, PenLine, Ban, Eye, X } from 'lucide-react';
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import {
@@ -323,7 +325,9 @@ export function ScheduleManagement() {
 
             <div className="space-y-2 mt-2">
               <Label>Trạng thái chuyến đi</Label>
-              <Select value={editForm.status} onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}>
+
+              <Select value={editForm.status} onValueChange={(val: string) => setEditForm(prev => ({...prev, status: val}))}>
+
                 <SelectTrigger>
                   <SelectValue placeholder="Trạng thái" />
                 </SelectTrigger>
