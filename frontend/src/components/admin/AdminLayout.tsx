@@ -1,21 +1,17 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useAppSelector } from '../../hooks/useRedux';
-import { RootState } from '../../store';
-
-type AdminTab = 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
+import { useState } from 'react';
 
 interface AdminLayoutProps {
   children: ReactNode;
-  activeTab: AdminTab;
-  onTabChange: (tab: AdminTab) => void;
+  activeTab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports';
+  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports') => void;
   onLogout: () => void;
 }
 
 export function AdminLayout({ children, activeTab, onTabChange, onLogout }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAppSelector((s: RootState) => s.auth);
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
@@ -111,13 +107,11 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
 
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="font-bold text-primary">
-                  {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
-                </span>
+                <span className="font-bold text-primary">AD</span>
               </div>
-              <div className="hidden sm:block text-right">
-                <p className="font-semibold text-sm leading-none">{user?.name || 'Admin User'}</p>
-                <p className="text-xs text-muted-foreground mt-1">{user?.email || 'admin@vnrailway.vn'}</p>
+              <div className="hidden sm:block">
+                <p className="font-semibold">Admin User</p>
+                <p className="text-xs text-muted-foreground">admin@vnrailway.vn</p>
               </div>
             </div>
           </div>

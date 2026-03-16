@@ -140,6 +140,7 @@ const generateSeatsForCarriage = async (
     template: CarriageTemplate
 ) => {
     const { rows, cols } = template.layout;
+    const priorityRows = Math.ceil(template.priority_seats / cols);
     const seats = [];
 
     for (let row = 0; row < rows; row++) {
@@ -165,15 +166,12 @@ const generateSeatsForCarriage = async (
 export const getAllTrains = async () => {
     return Train.find({
         $or: [
-            { status: 'active' },
             { is_active: true },
             { is_active: { $exists: false } }
         ]
     })
-    .populate("line_id", "line_name line_code")
-    .sort({ train_code: 1 });
-}
-
+        .sort({ train_code: 1 });
+};
 
 export const getTrainById = async (trainId: string) => {
     const train = await Train.findById(trainId);
@@ -200,7 +198,7 @@ export const updateTrain = async (trainId: string, data: UpdateTrainInput) => {
 
 export const deleteTrain = async (trainId: string) => {
     // Soft delete tàu
-    await Train.findByIdAndUpdate(trainId, { is_active: false, status: 'inactive' });
+    await Train.findByIdAndUpdate(trainId, { is_active: false });
 
     // Cũng soft delete tất cả toa của tàu này
     await Carriage.updateMany({ train_id: trainId }, { is_active: false });
@@ -233,7 +231,7 @@ export const getSeatsByTrain = async (trainId: string) => {
                 "seat_number": 1 // Fallback sort nếu position không có
             });
 
-        // Nhóm ghế theo từng toa để frontend dễ render SeatMap UI
+        // Nhóm ghế theo từng toa để frontend dễ render SeatMap
         const seatsByCarriage: Record<string, typeof seats> = {};
         carriages.forEach((c) => {
             const carriageIdStr = c._id.toString();
