@@ -1,23 +1,36 @@
 import { useState } from 'react';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
-import { MetrolineManagement } from '../components/admin/MetrolineManagement';
+import { LineManagement } from '../components/admin/LineManagement';
+
+import { TicketManagement } from '../components/admin/TicketManagement';
+
+import { ScheduleManagement } from '../components/admin/ScheduleManagement';
+
+
+import { logout } from '../store/slices/authSlice';
+import { useAppDispatch } from '../hooks/useRedux';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports'>('trains');
+    const dispatch = useAppDispatch();
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports'>('trains');
 
     const handleLogout = () => {
-        // Implement logout logic
+        dispatch(logout());
     };
 
     const renderContent = () => {
         switch (activeTab) {
             case 'trains':
                 return <TrainManagement />;
-            case 'metrolines':
-                return <MetrolineManagement />;
-            case 'dashboard':
+            case 'lines':
+                return <LineManagement />;
+
+            case 'schedules':
+                return <ScheduleManagement />;
             case 'tickets':
+                return <TicketManagement />;
+            case 'dashboard':
             case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">

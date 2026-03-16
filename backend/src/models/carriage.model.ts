@@ -1,8 +1,8 @@
 import mongoose, { Schema } from "mongoose";
 import { ICarriage } from "../types/carriage.type";
 
-// ─── Schema Carriage (Toa xe Metro) ──────────────────────────────────────────
-// Mỗi document Carriage là 1 toa thuộc 1 đoàn tàu metro cụ thể
+// ─── Schema Carriage (Toa xe) ────────────────────────────────────────────────
+// Mỗi document Carriage là 1 toa thuộc 1 đoàn tàu cụ thể
 // Khi admin tạo 1 đoàn tàu mới, service sẽ auto-generate các toa + ghế
 
 const carriageSchema = new Schema<ICarriage>(
@@ -17,11 +17,10 @@ const carriageSchema = new Schema<ICarriage>(
         // Số thứ tự toa trong đoàn (1, 2, 3...)
         carriage_number: { type: Number, required: true },
 
-        // Loại chỗ chính: seat (thường) / priority (ưu tiên) / standing / business / economy
         seat_type: {
             type: String,
-            enum: ["seat", "priority", "standing", "business", "economy"],
-            default: "seat",
+            enum: ["hard_seat", "soft_seat", "sleeper_6", "sleeper_4", "vip_sleeper_2"],
+            default: "hard_seat",
             required: true,
         },
 

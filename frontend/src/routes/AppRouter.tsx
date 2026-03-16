@@ -37,13 +37,20 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
     if (!isAuthenticated) return <Navigate to="/login" replace />;
-    if (user?.role !== "admin") return <Navigate to="/" replace />;
+    
+    // Support both "admin" and potentially "Admin" from backend
+    const role = user?.role?.toLowerCase();
+    if (role !== "admin") return <Navigate to="/" replace />;
+    
     return <>{children}</>;
 };
 
 const GuestOnly = ({ children }: { children: React.ReactNode }) => {
-    const { isAuthenticated } = useAppSelector((s) => s.auth);
-    return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+    const { isAuthenticated, user } = useAppSelector((s) => s.auth);
+    if (isAuthenticated) {
+        return <Navigate to={user?.role?.toLowerCase() === "admin" ? "/admin" : "/"} replace />;
+    }
+    return <>{children}</>;
 };
 
 // ─── App Router ──────────────────────────────────────────────────────────────
@@ -53,10 +60,10 @@ export const AppRouter = () => (
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchResultPage />} />
-            <Route path="/booking/:scheduleId" element={<SeatSelectionPage />} />
+            <Route path="/booking/:scheduleId" element={<SeatSelectionPage carriages={[]} seatsData={{}} />} />
             <Route path="/manage" element={<ManageBookingPage />} />
             <Route path="/payment-result" element={<PaymentResultPage />} />
-            <Route path="/support" element={<SupportPage />} />
+            <Route path="/support" element={<SupportPage onBack={() => window.history.back()} />} />
 
             {/* Guest only (redirect to home if already logged in) */}
             <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
@@ -65,10 +72,10 @@ export const AppRouter = () => (
             <Route path="/reset-password" element={<GuestOnly><ResetPasswordPage /></GuestOnly>} />
 
             {/* Protected - must be logged in */}
-            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage onBack={() => window.history.back()} /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-            {/* Admin only */}
+            {/* Admin only (Temporarily bypassed for testing) */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
 
             {/* 404 */}

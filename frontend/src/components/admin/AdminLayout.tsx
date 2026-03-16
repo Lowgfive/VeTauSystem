@@ -1,23 +1,27 @@
 import { ReactNode } from 'react';
-import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin } from 'lucide-react';
+import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useState } from 'react';
+import { useAppSelector } from '../../hooks/useRedux';
+import { RootState } from '../../store';
 
 interface AdminLayoutProps {
   children: ReactNode;
-  activeTab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports';
-  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'metrolines' | 'reports') => void;
+  activeTab: 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports';
+  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'lines' | 'schedules' | 'reports') => void;
   onLogout: () => void;
 }
 
 export function AdminLayout({ children, activeTab, onTabChange, onLogout }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAppSelector((s: RootState) => s.auth);
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tickets' as const, label: 'Quản lý vé', icon: Ticket },
-    { id: 'metrolines' as const, label: 'Tuyến & Ga', icon: MapPin },
-    { id: 'trains' as const, label: 'Đoàn tàu Metro', icon: Train },
+    { id: 'lines' as const, label: 'Tuyến & Ga', icon: MapPin },
+    { id: 'trains' as const, label: 'Đoàn tàu', icon: Train },
+    { id: 'schedules' as const, label: 'Lịch trình', icon: CalendarClock },
     { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },
   ];
 
@@ -107,11 +111,13 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
 
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="font-bold text-primary">AD</span>
+                <span className="font-bold text-primary">
+                  {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
+                </span>
               </div>
-              <div className="hidden sm:block">
-                <p className="font-semibold">Admin User</p>
-                <p className="text-xs text-muted-foreground">admin@vnrailway.vn</p>
+              <div className="hidden sm:block text-right">
+                <p className="font-semibold text-sm leading-none">{user?.name || 'Admin User'}</p>
+                <p className="text-xs text-muted-foreground mt-1">{user?.email || 'admin@vnrailway.vn'}</p>
               </div>
             </div>
           </div>

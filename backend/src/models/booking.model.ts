@@ -1,71 +1,57 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export interface IPassenger {
-    fullName: string;
-    idNumber: string;
-    phone: string;
-    email: string;
-    dateOfBirth: string;
-    seatId: string;
-}
+// ─── IBooking Interface ────────────────────────────────────────────────────────
 
 export interface IBooking extends Document {
-    bookingCode: string;
-    userId: mongoose.Types.ObjectId;
-    scheduleId: mongoose.Types.ObjectId; // References Schedule (not implemented fully)
-    passengers: IPassenger[];
-    totalAmount: number;
-    status: 'confirmed' | 'cancelled' | 'pending' | 'completed';
-    paymentStatus: 'paid' | 'pending' | 'refunded';
-    paymentMethod: 'credit-card' | 'bank-transfer' | 'momo' | 'vnpay';
-    // Mock fields for now to satisfy the frontend's MyBookingsPage requirements
-    trainNumber: string;
-    routeOrigin: string;
-    routeDestination: string;
-    departureTime: string;
-    arrivalTime: string;
+    user_id: mongoose.Types.ObjectId;
+    schedule_id: mongoose.Types.ObjectId;
+    seat_id: mongoose.Types.ObjectId;
+    status: "pending" | "confirmed" | "refunded" | "changed" | "paid";
+    booking_code: string;
+    price: number;
     createdAt: Date;
     updatedAt: Date;
 }
 
-const PassengerSchema = new Schema<IPassenger>({
-    fullName: { type: String, required: true },
-    idNumber: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true },
-    dateOfBirth: { type: String, required: true },
-    seatId: { type: String, required: true }
-}, { _id: false });
 
-const BookingSchema = new Schema<IBooking>({
-    bookingCode: { type: String, required: true, unique: true },
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    scheduleId: { type: Schema.Types.ObjectId, ref: "Schedule" },
-    passengers: [PassengerSchema],
-    totalAmount: { type: Number, required: true, default: 0 },
-    status: { 
-        type: String, 
-        enum: ['confirmed', 'cancelled', 'pending', 'completed'], 
-        default: 'pending' 
+const BookingSchema = new Schema<IBooking>(
+    {
+        user_id: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+        schedule_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Schedule",
+            required: true,
+        },
+        seat_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Seat",
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ["pending", "confirmed", "refunded", "changed", "paid"],
+            default: "pending",
+        },
+        booking_code: {
+            type: String,
+            required: true,
+            unique: true,
+        },
+        price: {
+            type: Number,
+            required: true,
+        },
     },
-    paymentStatus: { 
-        type: String, 
-        enum: ['paid', 'pending', 'refunded'], 
-        default: 'pending' 
-    },
-    paymentMethod: { 
-        type: String, 
-        enum: ['credit-card', 'bank-transfer', 'momo', 'vnpay'],
-        required: true
-    },
-    trainNumber: { type: String },
-    routeOrigin: { type: String },
-    routeDestination: { type: String },
-    departureTime: { type: String },
-    arrivalTime: { type: String },
-}, {
-    timestamps: true,
-    versionKey: false,
-});
+    {
+        timestamps: true,   // auto createdAt / updatedAt
+        versionKey: false,  // remove __v field
+    }
+);
 
-export default mongoose.model<IBooking>("Booking", BookingSchema);
+const BookingModel = mongoose.model<IBooking>("Booking", BookingSchema);
+
+export default BookingModel;

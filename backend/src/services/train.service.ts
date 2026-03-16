@@ -15,22 +15,22 @@ interface CarriageTemplate {
     priority_seats: number;
 }
 
-const METRO_4CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "seat", count: 4, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
+const TRAIN_4CAR_TEMPLATE: CarriageTemplate[] = [
+    { seat_type: "hard_seat", count: 4, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
 ];
 
-const METRO_6CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "seat", count: 6, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
+const TRAIN_6CAR_TEMPLATE: CarriageTemplate[] = [
+    { seat_type: "hard_seat", count: 6, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
 ];
 
-const METRO_8CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "seat", count: 8, seats_per_carriage: 44, standing_capacity: 200, layout: { rows: 11, cols: 4 }, priority_seats: 8 },
+const TRAIN_8CAR_TEMPLATE: CarriageTemplate[] = [
+    { seat_type: "hard_seat", count: 8, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
 ];
 
 const TEMPLATE_MAP: Record<TrainType, CarriageTemplate[]> = {
-    "4-car": METRO_4CAR_TEMPLATE,
-    "6-car": METRO_6CAR_TEMPLATE,
-    "8-car": METRO_8CAR_TEMPLATE,
+    "4-car": TRAIN_4CAR_TEMPLATE,
+    "6-car": TRAIN_6CAR_TEMPLATE,
+    "8-car": TRAIN_8CAR_TEMPLATE,
 };
 
 interface CreateTrainInput {
@@ -70,7 +70,7 @@ export const createTrain = async (input: CreateTrainInput) => {
             seats_per_carriage: t.total_seats,
             standing_capacity: t.standing_capacity,
             layout: t.layout,
-            priority_seats: t.seat_type === "priority" ? t.total_seats : (t.seat_type === "seat" ? 8 : 0)
+            priority_seats: 0
         }));
     } else {
         const trainType: TrainType = input.train_type || "4-car";
@@ -150,7 +150,7 @@ const generateSeatsForCarriage = async (
             const colLetter = String.fromCharCode(65 + col);
             const seatNumber = `${carriageNumber}${colLetter}${row + 1}`;
 
-            const seatType: SeatType = row < priorityRows ? "priority" : template.seat_type;
+            const seatType: SeatType = template.seat_type;
 
             seats.push({
                 carriage_id: carriageId,
@@ -166,9 +166,14 @@ const generateSeatsForCarriage = async (
 };
 
 export const getAllTrains = async () => {
-    return Train.find({ is_active: true })
-        .populate("line_id", "line_name line_code")
-        .sort({ train_code: 1 });
+    return Train.find({
+        $or: [
+            { is_active: true },
+            { is_active: { $exists: false } }
+        ]
+    })
+    .populate("line_id", "line_name line_code")
+    .sort({ train_code: 1 });
 };
 
 export const getTrainById = async (trainId: string) => {
@@ -201,7 +206,7 @@ export const deleteTrain = async (trainId: string) => {
     // Cũng soft delete tất cả toa của tàu này
     await Carriage.updateMany({ train_id: trainId }, { is_active: false });
 
-    return { message: "Đã xóa đoàn tàu metro và các toa liên quan" };
+    return { message: "Đã xóa đoàn tàu và các toa liên quan" };
 };
 
 export const getSeatsByCarriage = async (carriageId: string) => {
@@ -212,21 +217,108 @@ export const getSeatsByCarriage = async (carriageId: string) => {
 };
 
 export const getSeatsByTrain = async (trainId: string) => {
-    const carriages = await Carriage.find({ train_id: trainId, is_active: true });
-    const carriageIds = carriages.map((c) => c._id);
+    try {
+        const carriages = await Carriage.find({ train_id: trainId, is_active: true }).sort({ carriage_number: 1 });
 
-    const seats = await Seat.find({ carriage_id: { $in: carriageIds } }).sort({
-        "position.row": 1,
-        "position.col": 1,
-    });
+        if (!carriages || carriages.length === 0) {
+            return { carriages: [], seatsByCarriage: {} };
+        }
 
-    // Nhóm ghế theo từng toa để frontend dễ render SeatMap
-    const seatsByCarriage: Record<string, typeof seats> = {};
-    carriages.forEach((c) => {
-        seatsByCarriage[c._id.toString()] = seats.filter(
-            (s) => s.carriage_id.toString() === c._id.toString()
+        const carriageIds = carriages.map((c) => c._id);
+
+        // Query seats với sort an toàn - chỉ sort nếu position tồn tại
+        const seats = await Seat.find({ carriage_id: { $in: carriageIds } })
+            .sort({
+                "position.row": 1,
+                "position.col": 1,
+                "seat_number": 1 // Fallback sort nếu position không có
+            });
+
+        // Nhóm ghế theo từng toa để frontend dễ render SeatMap
+        const seatsByCarriage: Record<string, typeof seats> = {};
+        carriages.forEach((c) => {
+            const carriageIdStr = c._id.toString();
+            seatsByCarriage[carriageIdStr] = seats.filter(
+                (s) => s.carriage_id && s.carriage_id.toString() === carriageIdStr
+            );
+        });
+
+        return { carriages, seatsByCarriage };
+    } catch (error) {
+        console.error("Error in getSeatsByTrain:", error);
+        throw error;
+    }
+};
+
+// Generate toa và ghế cho tàu đã tồn tại (nếu chưa có)
+export const generateCarriagesAndSeatsForExistingTrain = async (trainId: string) => {
+    try {
+        const train = await Train.findById(trainId);
+        if (!train) {
+            throw new Error("Không tìm thấy tàu");
+        }
+
+        // Kiểm tra xem tàu đã có toa chưa
+        const existingCarriages = await Carriage.find({ train_id: trainId });
+        if (existingCarriages.length > 0) {
+            throw new Error("Tàu này đã có toa xe. Không thể tạo lại.");
+        }
+
+        let templates: CarriageTemplate[] = [];
+
+        if (train.template_id) {
+            // Lấy template từ Database
+            const dbTemplate = await TrainTemplate.findById(train.template_id).populate("carriage_templates");
+            if (!dbTemplate) {
+                throw new Error("Không tìm thấy mẫu tàu trong hệ thống");
+            }
+
+            const carriageTemplates = dbTemplate.carriage_templates as any[];
+            const counts: Record<string, number> = {};
+            const uniqueTemplates: any[] = [];
+
+            carriageTemplates.forEach(t => {
+                if (!counts[t._id.toString()]) {
+                    counts[t._id.toString()] = 1;
+                    uniqueTemplates.push(t);
+                } else {
+                    counts[t._id.toString()]++;
+                }
+            });
+
+            templates = uniqueTemplates.map(t => ({
+                seat_type: t.seat_type,
+                count: counts[t._id.toString()],
+                seats_per_carriage: t.total_seats,
+                standing_capacity: t.standing_capacity,
+                layout: t.layout,
+                priority_seats: 0
+            }));
+        } else {
+            // Dùng template mặc định dựa trên train_type
+            const trainType: TrainType = (train.train_type as TrainType) || "4-car";
+            templates = TEMPLATE_MAP[trainType];
+        }
+
+        // Generate toa và ghế
+        await generateCarriagesAndSeats(trainId, templates);
+
+        // Cập nhật lại total_carriages và capacity
+        const totalCarriages = templates.reduce((sum, t) => sum + t.count, 0);
+        const totalCapacity = templates.reduce(
+            (sum, t) => sum + t.count * (t.seats_per_carriage + t.standing_capacity),
+            0
         );
-    });
 
-    return { carriages, seatsByCarriage };
+        await Train.findByIdAndUpdate(trainId, {
+            total_carriages: totalCarriages,
+            capacity: totalCapacity
+        });
+
+        const carriages = await Carriage.find({ train_id: trainId }).sort({ carriage_number: 1 });
+        return { train, carriages, message: "Đã tạo toa và ghế thành công" };
+    } catch (error: any) {
+        console.error("Error generating carriages and seats:", error);
+        throw error;
+    }
 };

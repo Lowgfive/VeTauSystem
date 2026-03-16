@@ -15,7 +15,8 @@ export interface Station {
   is_active: boolean;
 }
 
-export interface MetroLine {
+// Interface chính cho Line (Tuyến đường sắt)
+export interface Line {
   _id: string;
   line_name: string;
   line_code: string;
@@ -27,7 +28,7 @@ export interface MetroLine {
   is_active: boolean;
 }
 
-export type SeatType = 'seat' | 'priority' | 'standing';
+export type SeatType = 'hard_seat' | 'soft_seat' | 'sleeper_6' | 'sleeper_4' | 'vip_sleeper_2';
 
 export interface SeatTypeInfo {
   id: SeatType;
@@ -66,7 +67,7 @@ export interface Train {
   train_code: string;
   train_name: string;
   train_type: TrainType;
-  line_id: MetroLine | string;
+  line_id: Line | string;
   total_carriages: number;
   capacity: number;
   max_speed: number;
