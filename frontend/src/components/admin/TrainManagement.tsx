@@ -6,7 +6,7 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Search, Plus, Edit, Trash2, Train as TrainIcon, Calendar, MapPin, Clock, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { Train, Line, Carriage, Seat } from '../../types';
+import { Train, Carriage, Seat } from '../../types';
 import { SeatMap } from '../SeatMap';
 import { apiClient } from '../../config/api';
 
@@ -21,16 +21,17 @@ export function TrainManagement() {
   const [selectedTrainForMap, setSelectedTrainForMap] = useState<Train | null>(null);
   const [carriagesForMap, setCarriagesForMap] = useState<Carriage[]>([]);
   const [seatsForMap, setSeatsForMap] = useState<Record<string, Seat[]>>({});
+  const [schedulesForMap, setSchedulesForMap] = useState<any[]>([]);
+  const [selectedScheduleIdForMap, setSelectedScheduleIdForMap] = useState<string>('');
+  const [loadingSeatMap, setLoadingSeatMap] = useState(false);
 
   const [trains, setTrains] = useState<Train[]>([]);
-  const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     train_code: '',
     train_name: '',
-    template_id: '',
-    line_id: ''
+    template_id: ''
   });
 
   const [trainTemplates, setTrainTemplates] = useState<any[]>([]);
@@ -41,19 +42,16 @@ export function TrainManagement() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [trainsRes, linesRes, templatesRes] = await Promise.all([
+      const [trainsRes, templatesRes] = await Promise.all([
         apiClient.get(`/trains`),
-        apiClient.get(`/lines`),
         apiClient.get(`/templates/trains`)
       ]);
       setTrains(trainsRes.data.data);
-      setLines(linesRes.data.data);
       setTrainTemplates(templatesRes.data.data);
 
-      if (linesRes.data.data.length > 0) {
+      if (templatesRes.data.data.length > 0) {
         setFormData(prev => ({
           ...prev,
-          line_id: linesRes.data.data[0]._id,
           template_id: templatesRes.data.data[0]?._id || ''
         }));
       }
@@ -101,7 +99,7 @@ export function TrainManagement() {
 
   const handleAddTrain = async () => {
     try {
-      if (!formData.train_code || !formData.train_name || !formData.line_id || !formData.template_id) {
+      if (!formData.train_code || !formData.train_name || !formData.template_id) {
         toast.error('Vui lòng nhập đầy đủ thông tin (bao gồm mã mẫu tàu)');
         return;
       }
@@ -114,26 +112,21 @@ export function TrainManagement() {
     }
   };
 
-  const handleViewMap = async (train: Train) => {
-    setSelectedTrainForMap(train);
+  const loadSeatMapBySchedule = async (scheduleId: string) => {
+    if (!selectedTrainForMap) return;
     try {
-      const res = await apiClient.get(`/trains/${train._id}/seatmap`);
-      console.log('SeatMap API Response:', res.data);
-
+      setLoadingSeatMap(true);
+      const res = await apiClient.get(`/schedules/${scheduleId}/seatmap`);
       if (res.data.success && res.data.data) {
         const carriages = res.data.data.carriages || [];
         const seatsByCarriage = res.data.data.seatsByCarriage || {};
 
-        console.log('Carriages:', carriages);
-        console.log('SeatsByCarriage:', seatsByCarriage);
-
         if (carriages.length === 0) {
-          // Hỏi user có muốn tạo toa và ghế không
           toast.warning('Tàu này chưa có toa xe', {
             description: 'Bạn có muốn tạo toa và ghế tự động không?',
             action: {
               label: 'Tạo ngay',
-              onClick: () => handleGenerateCarriages(train)
+              onClick: () => handleGenerateCarriages(selectedTrainForMap)
             },
             cancel: {
               label: 'Hủy',
@@ -146,13 +139,39 @@ export function TrainManagement() {
 
         setCarriagesForMap(carriages);
         setSeatsForMap(seatsByCarriage);
-        setShowSeatMapModal(true);
       } else {
         toast.error('Dữ liệu sơ đồ ghế không hợp lệ');
       }
     } catch (e: any) {
       console.error('Error loading seat map:', e);
       toast.error(e?.response?.data?.message || 'Không thể tải sơ đồ ghế. Vui lòng thử lại.');
+    } finally {
+      setLoadingSeatMap(false);
+    }
+  };
+
+  const handleViewMap = async (train: Train) => {
+    setSelectedTrainForMap(train);
+    try {
+      // Lấy danh sách lịch theo tàu
+      const resSchedules = await apiClient.get(`/schedules`, {
+        params: { trainId: train._id },
+      });
+      const list = resSchedules.data?.data || [];
+      setSchedulesForMap(list);
+
+      if (!list.length) {
+        toast.warning('Tàu này chưa có lịch chạy. Vui lòng sinh lịch ở tab Lịch trình trước.');
+        return;
+      }
+
+      const defaultScheduleId = list[0]._id;
+      setSelectedScheduleIdForMap(defaultScheduleId);
+      await loadSeatMapBySchedule(defaultScheduleId);
+      setShowSeatMapModal(true);
+    } catch (e: any) {
+      console.error('Error loading schedules or seat map:', e);
+      toast.error(e?.response?.data?.message || 'Không thể tải lịch và sơ đồ ghế. Vui lòng thử lại.');
     }
   };
 
@@ -177,8 +196,7 @@ export function TrainManagement() {
     setFormData({
       train_code: train.train_code || '',
       train_name: train.train_name || '',
-      template_id: typeof train.template_id === 'object' ? train.template_id._id : train.template_id || '',
-      line_id: typeof train.line_id === 'object' ? train.line_id._id : train.line_id || ''
+      template_id: typeof train.template_id === 'object' ? train.template_id._id : train.template_id || ''
     });
     setShowEditModal(true);
   };
@@ -186,7 +204,7 @@ export function TrainManagement() {
   const handleUpdateTrain = async () => {
     if (!selectedTrain) return;
     try {
-      if (!formData.train_code || !formData.train_name || !formData.line_id || !formData.template_id) {
+      if (!formData.train_code || !formData.train_name || !formData.template_id) {
         toast.error('Vui lòng nhập đầy đủ thông tin');
         return;
       }
@@ -282,41 +300,13 @@ export function TrainManagement() {
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <TrainIcon className="w-6 h-6 text-primary" />
-
-      {/* Trains List */}
-      {activeTab === 'trains' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredTrains.map((train) => (
-            <Card key={train._id} className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <TrainIcon className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">{train.train_code}</h3>
-                    <p className="text-sm text-muted-foreground">{train.train_name}</p>
-                  </div>
-                </div>
-                {getStatusBadge(train.status || train.is_active)}
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Loại tàu:</span>
-                  <span className="font-medium">{train.train_type}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Số toa:</span>
-                  <span className="font-medium">{train.total_carriages} toa</span>
-
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{train.train_code}</h3>
                   <p className="text-sm text-muted-foreground">{train.train_name}</p>
                 </div>
               </div>
-              {getStatusBadge(train.is_active)}
+              {getStatusBadge(train.status || train.is_active)}
             </div>
 
             <div className="space-y-3 mb-4">
@@ -327,14 +317,6 @@ export function TrainManagement() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Tổng ghế:</span>
                 <span className="font-medium">{train.capacity ? `${train.capacity} ghế` : 'N/A'}</span>
-              </div>
-              <div className="pt-2 border-t">
-                <p className="text-sm text-muted-foreground mb-1">Tuyến đường:</p>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="secondary" className="text-xs">
-                    {typeof train.line_id === 'object' ? (train.line_id as Line).line_name : 'N/A'}
-                  </Badge>
-                </div>
               </div>
             </div>
 
@@ -419,18 +401,6 @@ export function TrainManagement() {
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tuyến đường</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.line_id}
-                    onChange={(e: any) => setFormData({ ...formData, line_id: e.target.value })}
-                  >
-                    {lines.map((line: any) => (
-                      <option key={line._id} value={line._id}>{line.line_name}</option>
-                    ))}
-                  </select>
-                </div>
 
                 <div className="flex gap-3 pt-4">
                   <Button className="flex-1" onClick={handleAddTrain}>
@@ -498,19 +468,6 @@ export function TrainManagement() {
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tuyến đường</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={formData.line_id}
-                    onChange={(e: any) => setFormData({ ...formData, line_id: e.target.value })}
-                  >
-                    <option value="">Chọn tuyến</option>
-                    {lines.map((line: any) => (
-                      <option key={line._id} value={line._id}>{line.line_name}</option>
-                    ))}
-                  </select>
-                </div>
 
                 <div className="flex gap-3 pt-4">
                   <Button className="flex-1" onClick={handleUpdateTrain}>
@@ -535,19 +492,54 @@ export function TrainManagement() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">
-                  Sơ đồ ghế - Tàu {selectedTrainForMap.train_code}
-                </h2>
-                <button onClick={() => setShowSeatMapModal(false)}>
-                  <X className="w-6 h-6" />
-                </button>
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">
+                      Sơ đồ ghế - Tàu {selectedTrainForMap.train_code}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Chọn chuyến (ngày/giờ) để xem tình trạng ghế theo từng ngày.
+                    </p>
+                  </div>
+                  <button onClick={() => setShowSeatMapModal(false)}>
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {schedulesForMap.length > 0 && (
+                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                    <span className="text-sm font-medium text-muted-foreground">Chuyến / Ngày chạy:</span>
+                    <select
+                      className="px-3 py-2 border rounded-lg text-sm min-w-[260px]"
+                      value={selectedScheduleIdForMap}
+                      onChange={async (e) => {
+                        const id = e.target.value;
+                        setSelectedScheduleIdForMap(id);
+                        await loadSeatMapBySchedule(id);
+                      }}
+                    >
+                      {schedulesForMap.map((s: any) => (
+                        <option key={s._id} value={s._id}>
+                          {new Date(s.date).toLocaleDateString('vi-VN')} · {s.departure_time} - {s.arrival_time}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-              <SeatMap
-                carriages={carriagesForMap}
-                seatsData={seatsForMap}
-                readOnly={true}
-              />
+
+              {loadingSeatMap ? (
+                <div className="py-16 text-center text-muted-foreground">
+                  Đang tải sơ đồ ghế...
+                </div>
+              ) : (
+                <SeatMap
+                  carriages={carriagesForMap}
+                  seatsData={seatsForMap}
+                  readOnly={true}
+                />
+              )}
             </div>
           </Card>
         </div>

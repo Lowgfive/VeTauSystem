@@ -9,7 +9,6 @@ export interface IStation extends Document {
   station_code: string;           // Mã ga (VD: "L5-01")
   station_order: number;          // Thứ tự ga trên tuyến (1-20)
   station_type: StationType;      // Loại ga: ngầm / trên cao / mặt đất
-  line_id: Types.ObjectId;        // Thuộc tuyến đường sắt nào
   location: string;               // Địa chỉ / khu vực
   lat?: number;                   // Vĩ độ GPS (optional)
   lng?: number;                   // Kinh độ GPS (optional)

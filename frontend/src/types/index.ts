@@ -3,30 +3,17 @@
 export type StationType = "underground" | "elevated" | "ground";
 
 export interface Station {
-  _id: string; // MongoDB use _id
+  _id: string;
   station_name: string;
   station_code: string;
   station_order: number;
   station_type: StationType;
-  line_id: any;
   location: string;
   lat?: number;
   lng?: number;
   is_active: boolean;
 }
 
-// Interface chính cho Line (Tuyến đường sắt)
-export interface Line {
-  _id: string;
-  line_name: string;
-  line_code: string;
-  stations: Station[] | string[];
-  total_distance: number;
-  total_stations: number;
-  operating_hours: { start: string; end: string };
-  frequency_minutes: number;
-  is_active: boolean;
-}
 
 export type SeatType = 'hard_seat' | 'soft_seat' | 'sleeper_6' | 'sleeper_4' | 'vip_sleeper_2';
 
@@ -67,12 +54,13 @@ export interface Train {
   train_code: string;
   train_name: string;
   train_type: TrainType;
-  line_id: Line | string;
   total_carriages: number;
   capacity: number;
   max_speed: number;
   amenities: string[];
   is_active: boolean;
+  status?: string;
+  template_id?: any;
 }
 
 export interface Schedule {

@@ -13,9 +13,6 @@ const trainSchema = new Schema<ITrain>(
         // Mã đoàn tàu duy nhất
         train_code: { type: String, required: true, unique: true },
 
-        // Tuyến đường sắt
-        line_id: { type: Schema.Types.ObjectId, ref: "Line" },
-
         direction: { type: String, enum: ["forward", "backward"] },
 
         total_carriages: { type: Number },

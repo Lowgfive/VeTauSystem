@@ -9,7 +9,6 @@ export interface ITrain extends Document {
   train_name: string;           // Tên đoàn tàu (VD: "Tàu L5-001")
   train_code: string;           // Mã tàu duy nhất (VD: "T5-001")
   train_type?: TrainType;        // Loại đoàn tàu: 4/6/8 toa
-  line_id?: Types.ObjectId;      // Thuộc tuyến tàu nào
   total_carriages?: number;      // Tổng số toa trong đoàn
   capacity?: number;             // Sức chứa tối đa (ngồi + đứng)
   max_speed?: number;            // Tốc độ tối đa (km/h)

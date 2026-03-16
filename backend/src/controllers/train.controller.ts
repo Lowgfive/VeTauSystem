@@ -41,10 +41,6 @@ export const getTrainById = async (req: Request, res: Response, next: NextFuncti
 
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-
-        const { id } = (req as any).params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-
             return res.status(400).json({ success: false, message: "ID tàu không hợp lệ" });
         }
         const result = await trainService.getTrainById(id);

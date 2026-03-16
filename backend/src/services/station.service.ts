@@ -1,11 +1,10 @@
 import { Station } from "../models/station.model";
-import { Line } from "../models/line.model";
 import { IStation } from "../types/station.type";
 
 export class StationService {
   /**
    * Tạo ga mới
-   * @param data Dữ liệu ga (tên, mã, thứ tự, loại ga, line_id)
+   * @param data Dữ liệu ga (tên, mã, thứ tự, vị trí)
    */
   static async createStation(data: Partial<IStation>) {
     return await Station.create(data);
@@ -13,30 +12,18 @@ export class StationService {
 
   /**
    * Lấy tất cả ga trong hệ thống
-   * Populate thông tin tuyến (Line) đi kèm
    */
   static async getAllStations() {
     return await Station.find({ is_active: true })
-      .populate("line_id", "line_name line_code")
-      .sort({ line_id: 1, station_order: 1 });
+      .sort({ station_order: 1 });
   }
 
   /**
    * Lấy chi tiết một ga theo mã ga
-   * @param code Mã ga (VD: "L5-01")
+   * @param code Mã ga (VD: "HN")
    */
   static async getStationByCode(code: string) {
-    return await Station.findOne({ station_code: code, is_active: true })
-      .populate("line_id", "line_name line_code");
-  }
-
-  /**
-   * Lấy danh sách ga thuộc một tuyến cụ thể
-   * @param lineId ID của tuyến
-   */
-  static async getStationsByLine(lineId: string) {
-    return await Station.find({ line_id: lineId, is_active: true })
-      .sort({ station_order: 1 });
+    return await Station.findOne({ station_code: code, is_active: true });
   }
 
   /**
