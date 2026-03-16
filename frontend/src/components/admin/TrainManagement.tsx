@@ -6,7 +6,7 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Search, Plus, Edit, Trash2, Train as TrainIcon, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { Train, Line, Carriage, Seat } from '../../types';
+import { Train, Carriage, Seat } from '../../types';
 import { SeatMap } from '../SeatMap';
 import { apiClient } from '../../config/api';
 
@@ -20,16 +20,17 @@ export function TrainManagement() {
   const [selectedTrainForMap, setSelectedTrainForMap] = useState<Train | null>(null);
   const [carriagesForMap, setCarriagesForMap] = useState<Carriage[]>([]);
   const [seatsForMap, setSeatsForMap] = useState<Record<string, Seat[]>>({});
+  const [schedulesForMap, setSchedulesForMap] = useState<any[]>([]);
+  const [selectedScheduleIdForMap, setSelectedScheduleIdForMap] = useState<string>('');
+  const [loadingSeatMap, setLoadingSeatMap] = useState(false);
 
   const [trains, setTrains] = useState<Train[]>([]);
-  const [lines, setLines] = useState<Line[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     train_code: '',
     train_name: '',
-    template_id: '',
-    line_id: ''
+    template_id: ''
   });
 
   const [trainTemplates, setTrainTemplates] = useState<any[]>([]);
@@ -37,19 +38,16 @@ export function TrainManagement() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [trainsRes, linesRes, templatesRes] = await Promise.all([
+      const [trainsRes, templatesRes] = await Promise.all([
         apiClient.get(`/trains`),
-        apiClient.get(`/lines`),
         apiClient.get(`/templates/trains`)
       ]);
       setTrains(trainsRes.data.data);
-      setLines(linesRes.data.data);
       setTrainTemplates(templatesRes.data.data);
 
-      if (linesRes.data.data.length > 0) {
+      if (templatesRes.data.data.length > 0) {
         setFormData(prev => ({
           ...prev,
-          line_id: linesRes.data.data[0]._id,
           template_id: templatesRes.data.data[0]?._id || ''
         }));
       }
@@ -88,7 +86,7 @@ export function TrainManagement() {
 
   const handleAddTrain = async () => {
     try {
-      if (!formData.train_code || !formData.train_name || !formData.line_id || !formData.template_id) {
+      if (!formData.train_code || !formData.train_name || !formData.template_id) {
         toast.error('Vui lòng nhập đầy đủ thông tin (bao gồm mã mẫu tàu)');
         return;
       }
@@ -101,8 +99,8 @@ export function TrainManagement() {
     }
   };
 
-  const handleViewMap = async (train: Train) => {
-    setSelectedTrainForMap(train);
+  const loadSeatMapBySchedule = async (scheduleId: string) => {
+    if (!selectedTrainForMap) return;
     try {
       const res = await apiClient.get(`/trains/${train._id}/seatmap`);
       if (res.data.success && res.data.data) {
@@ -114,7 +112,7 @@ export function TrainManagement() {
             description: 'Bạn có muốn tạo toa và ghế tự động không?',
             action: {
               label: 'Tạo ngay',
-              onClick: () => handleGenerateCarriages(train)
+              onClick: () => handleGenerateCarriages(selectedTrainForMap)
             },
             duration: 10000
           });
@@ -123,13 +121,39 @@ export function TrainManagement() {
 
         setCarriagesForMap(carriages);
         setSeatsForMap(seatsByCarriage);
-        setShowSeatMapModal(true);
       } else {
         toast.error('Dữ liệu sơ đồ ghế không hợp lệ');
       }
     } catch (e: any) {
       console.error('Error loading seat map:', e);
       toast.error(e?.response?.data?.message || 'Không thể tải sơ đồ ghế. Vui lòng thử lại.');
+    } finally {
+      setLoadingSeatMap(false);
+    }
+  };
+
+  const handleViewMap = async (train: Train) => {
+    setSelectedTrainForMap(train);
+    try {
+      // Lấy danh sách lịch theo tàu
+      const resSchedules = await apiClient.get(`/schedules`, {
+        params: { trainId: train._id },
+      });
+      const list = resSchedules.data?.data || [];
+      setSchedulesForMap(list);
+
+      if (!list.length) {
+        toast.warning('Tàu này chưa có lịch chạy. Vui lòng sinh lịch ở tab Lịch trình trước.');
+        return;
+      }
+
+      const defaultScheduleId = list[0]._id;
+      setSelectedScheduleIdForMap(defaultScheduleId);
+      await loadSeatMapBySchedule(defaultScheduleId);
+      setShowSeatMapModal(true);
+    } catch (e: any) {
+      console.error('Error loading schedules or seat map:', e);
+      toast.error(e?.response?.data?.message || 'Không thể tải lịch và sơ đồ ghế. Vui lòng thử lại.');
     }
   };
 
@@ -153,8 +177,12 @@ export function TrainManagement() {
     setFormData({
       train_code: train.train_code || '',
       train_name: train.train_name || '',
+
       template_id: typeof train.template_id === 'object' ? (train.template_id as any)._id : train.template_id || '',
       line_id: typeof train.line_id === 'object' ? (train.line_id as any)._id : train.line_id || ''
+
+
+
     });
     setShowEditModal(true);
   };
@@ -162,7 +190,7 @@ export function TrainManagement() {
   const handleUpdateTrain = async () => {
     if (!selectedTrain) return;
     try {
-      if (!formData.train_code || !formData.train_name || !formData.line_id || !formData.template_id) {
+      if (!formData.train_code || !formData.train_name || !formData.template_id) {
         toast.error('Vui lòng nhập đầy đủ thông tin');
         return;
       }

@@ -20,7 +20,6 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tickets' as const, label: 'Quản lý vé', icon: Ticket },
-    { id: 'lines' as const, label: 'Tuyến & Ga', icon: MapPin },
     { id: 'trains' as const, label: 'Đoàn tàu', icon: Train },
     { id: 'schedules' as const, label: 'Lịch trình', icon: CalendarClock },
     { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },

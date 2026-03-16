@@ -124,9 +124,8 @@ export default class ScheduleService {
   }
 
   // --- MỚI THÊM VÀO ĐỂ FIX API MAIN BRANCH ---
-  
-  static async getAllSchedules() {
-    const schedules = await Schedule.find()
+  static async getAllSchedules(filter: Record<string, any> = {}) {
+    const schedules = await Schedule.find(filter)
       .populate("train_id")
       .populate({
         path: "route_id",
