@@ -37,27 +37,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
     if (!isAuthenticated) return <Navigate to="/login" replace />;
-<<<<<<< HEAD
-    if (user?.role?.toLowerCase() !== "admin") return <Navigate to="/" replace />;
-=======
     
     // Support both "admin" and potentially "Admin" from backend
     const role = user?.role?.toLowerCase();
     if (role !== "admin") return <Navigate to="/" replace />;
     
->>>>>>> main
     return <>{children}</>;
 };
 
 const GuestOnly = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated, user } = useAppSelector((s) => s.auth);
-<<<<<<< HEAD
-    if (isAuthenticated && user) {
-        return <Navigate to={user.role?.toLowerCase() === "admin" ? "/admin" : "/"} replace />;
-=======
     if (isAuthenticated) {
         return <Navigate to={user?.role?.toLowerCase() === "admin" ? "/admin" : "/"} replace />;
->>>>>>> main
     }
     return <>{children}</>;
 };
