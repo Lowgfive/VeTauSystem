@@ -18,6 +18,7 @@ export default function HomePage() {
       isLoggedIn={isAuthenticated}
       userName={user?.name}
       onLogout={handleLogout}
+      onNavigateToAdmin={user?.role?.toLowerCase() === "admin" ? () => navigate("/admin") : undefined}
       onNavigateToLogin={() => navigate("/login")}
       onNavigateToMyBookings={() => navigate("/manage")}
       onNavigateToSchedule={() => navigate("/search")}

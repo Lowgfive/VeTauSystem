@@ -166,9 +166,20 @@ const generateSeatsForCarriage = async (
 };
 
 export const getAllTrains = async () => {
+<<<<<<< HEAD
     return Train.find({ status: 'active' })
         .populate("line_id", "line_name line_code")
         .sort({ train_code: 1 });
+=======
+    return Train.find({
+        $or: [
+            { is_active: true },
+            { is_active: { $exists: false } }
+        ]
+    })
+    .populate("line_id", "line_name line_code")
+    .sort({ train_code: 1 });
+>>>>>>> main
 };
 
 export const getTrainById = async (trainId: string) => {

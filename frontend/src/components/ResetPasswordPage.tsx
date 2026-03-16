@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Train, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
+import { Train, ArrowLeft, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -20,12 +20,33 @@ export function ResetPasswordPage({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [errors, setErrors] = useState<{
     newPassword?: string;
     confirmPassword?: string;
   }>({});
 
+  // ─── Password Strength ────────────────────────────────────────────────────────
+  const getPasswordStrength = () => {
+    const pwd = newPassword;
+    if (!pwd) return { strength: 0, label: "", color: "" };
+
+    let strength = 0;
+    if (pwd.length >= 8) strength++;
+    if (pwd.length >= 12) strength++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) strength++;
+    if (/[0-9]/.test(pwd)) strength++;
+    if (/[^a-zA-Z0-9]/.test(pwd)) strength++;
+
+    if (strength <= 2) return { strength: 1, label: "Yếu", color: "bg-red-500" };
+    if (strength <= 3) return { strength: 2, label: "Trung bình", color: "bg-yellow-500" };
+    if (strength <= 4) return { strength: 3, label: "Mạnh", color: "bg-green-500" };
+    return { strength: 4, label: "Rất mạnh", color: "bg-green-600" };
+  };
+
+  const passwordStrength = getPasswordStrength();
+
+  // ─── Validation ───────────────────────────────────────────────────────────────
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
@@ -97,7 +118,39 @@ export function ResetPasswordPage({
                 {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {errors.newPassword && <p className="text-xs text-red-600 mt-1">{errors.newPassword}</p>}
+
+            {/* Password Strength Bar */}
+            {newPassword && (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1 flex-1">
+                  {[1, 2, 3, 4].map((level) => (
+                    <div
+                      key={level}
+                      className={`h-1 flex-1 rounded-full transition-all ${
+                        level <= passwordStrength.strength
+                          ? passwordStrength.color
+                          : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p
+                  className={`text-xs font-medium whitespace-nowrap ${
+                    passwordStrength.strength === 1
+                      ? "text-red-600"
+                      : passwordStrength.strength === 2
+                      ? "text-yellow-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {passwordStrength.label}
+                </p>
+              </div>
+            )}
+
+            {errors.newPassword && (
+              <p className="text-xs text-red-600 mt-1">{errors.newPassword}</p>
+            )}
           </div>
 
           {/* Confirm Password */}
@@ -131,6 +184,15 @@ export function ResetPasswordPage({
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Confirm Match Indicator */}
+            {confirmPassword && newPassword === confirmPassword && (
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Mật khẩu khớp
+              </p>
+            )}
+
             {errors.confirmPassword && (
               <p className="text-xs text-red-600 mt-1">{errors.confirmPassword}</p>
             )}

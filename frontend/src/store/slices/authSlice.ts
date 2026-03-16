@@ -14,16 +14,15 @@ interface AuthState {
 }
 
 const getStoredUser = () => {
-    const userStr = localStorage.getItem("user");
-    if (!userStr) return null;
+    const stored = localStorage.getItem("user");
+    if (!stored) return null;
     try {
-        const user = JSON.parse(userStr);
-        // Sync id and _id
+        const user = JSON.parse(stored);
         if (user && user._id && !user.id) {
             user.id = user._id;
         }
         return user;
-    } catch {
+    } catch (e) {
         return null;
     }
 };
