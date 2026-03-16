@@ -172,8 +172,7 @@ export const getAllTrains = async () => {
     })
     .populate("line_id", "line_name line_code")
     .sort({ train_code: 1 });
-
-        .sort({ train_code: 1 });
+}
 
 
 export const getTrainById = async (trainId: string) => {
