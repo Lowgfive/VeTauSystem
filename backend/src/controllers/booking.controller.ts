@@ -22,10 +22,33 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
         return res.status(400).json({ success: false, message: "scheduleId and seats array are required" });
     }
 
-    const schedule = await Schedule.findById(scheduleId).populate("train_id");
+    const schedule: any = await Schedule.findById(scheduleId).populate("train_id").populate("route_id");
     if (!schedule) {
         return res.status(404).json({ success: false, message: "Schedule not found" });
     }
+
+    const routeBasePrice = schedule.route_id?.price || 500000;
+    const insuranceFee = 1000;
+
+    const getSeatTypeMultiplier = (seatType: string): number => {
+        switch (seatType) {
+            case "hard_seat": return 0.8;
+            case "soft_seat": return 1.0;
+            case "sleeper_6": return 1.5;
+            case "sleeper_4": return 1.8;
+            case "vip_sleeper_2": return 2.5;
+            default: return 1.0;
+        }
+    };
+
+    const getDiscountRate = (type?: string) => {
+        if (type === 'Trẻ em') return 0.25;
+        if (type === 'Sinh viên') return 0.1;
+        if (type === 'Người cao tuổi') return 0.15;
+        return 0;
+    };
+
+    let calculatedTotalAmount = 0;
 
     const validSeatsData = [];
     for (const seatReq of seats) {
@@ -57,18 +80,24 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
             return res.status(409).json({ success: false, message: `Seat ${seat_number} is already booked` });
         }
 
+        const actualBasePrice = Math.round(routeBasePrice * getSeatTypeMultiplier(seat.seat_type || "soft_seat"));
+        const safeActualDiscount = getDiscountRate(passenger_type);
+        const actualTicketPrice = (actualBasePrice * (1 - safeActualDiscount)) + insuranceFee;
+
+        calculatedTotalAmount += actualTicketPrice;
+
         validSeatsData.push({
             seat_id: seat._id,
             seat_number: seat_number,
-            ticket_price: ticket_price,
+            ticket_price: actualTicketPrice,
             full_name,
             id_number,
             dob,
             gender,
             passenger_type,
-            discount_rate,
-            base_price,
-            insurance
+            discount_rate: safeActualDiscount,
+            base_price: actualBasePrice,
+            insurance: insuranceFee
         });
     }
 
@@ -76,7 +105,7 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
     const booking = await BookingModel.create({
         user_id: new mongoose.Types.ObjectId(userId),
         schedule_id: new mongoose.Types.ObjectId(scheduleId),
-        total_amount: totalAmount,
+        total_amount: calculatedTotalAmount,
         status: "pending"
     });
 

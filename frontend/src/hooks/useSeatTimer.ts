@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 
-export function useSeatTimer(expiresAt: number | null) {
+export function useSeatTimer(expiresAt: number | string | null) {
+  const parseExpires = (val: number | string | null) => {
+    if (!val) return 0;
+    const t = new Date(val).getTime();
+    return isNaN(t) ? 0 : t;
+  };
+
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!expiresAt) return 0;
-    return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+    const exp = parseExpires(expiresAt);
+    return Math.max(0, Math.floor((exp - Date.now()) / 1000));
   });
 
   useEffect(() => {
@@ -13,8 +20,9 @@ export function useSeatTimer(expiresAt: number | null) {
     }
 
     const calculateTimeLeft = () => {
+      const exp = parseExpires(expiresAt);
       const now = Date.now();
-      return Math.max(0, Math.floor((expiresAt - now) / 1000));
+      return Math.max(0, Math.floor((exp - now) / 1000));
     };
 
     // Update every second
