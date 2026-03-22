@@ -17,7 +17,7 @@ import {
 import { seatService, SeatInfo } from '../services/seat.service';
 import { toast } from 'sonner';
 import { getSocket, connectSocket, joinScheduleRoom, leaveScheduleRoom } from '../config/socket';
-import { addMyLock, removeMyLock } from '../utils/mySeatLocks';
+import { addMyLock, removeMyLock, isMyLock, getMyLocks } from '../utils/mySeatLocks';
 
 
 // Reusable Seat Item Internal Component
@@ -130,6 +130,16 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
         const res = await seatService.getSeatsBySchedule(scheduleId);
         if (res.success && res.data && Array.isArray(res.data.seats)) {
           setSeats(res.data.seats);
+          
+          if (onRestoreHeldSeats) {
+             const heldSeats = res.data.seats.filter(s => s.status === 'locked' && isMyLock(scheduleId, s.seatId));
+             if (heldSeats.length > 0) {
+                 // Gán lại timer tạm 5 phút nếu ko lấy đc từ BE để tránh Timer bị rỗng
+                 const restored = heldSeats.map(s => ({ ...s, expiresAt: Date.now() + 5 * 60 * 1000 }));
+                 onRestoreHeldSeats(restored);
+             }
+          }
+
           if (res.data.seats.length > 0) {
             setActiveCarriage(res.data.seats[0].carriageId);
           }
@@ -213,28 +223,33 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
     try {
       setProcessingId(seat.seatId);
       if (isCurrentlySelected) {
-        await seatService.unlockSeat(scheduleId, seat.seatNumber);
+        await seatService.unlockSeat(scheduleId, seat.seatNumber).catch(() => {});
         removeMyLock(scheduleId, seat.seatId);
         onSeatDeselect(seat.seatId);
       } else {
-        if (selectedSeats.length >= 8) {
-          toast.warning("Bạn chỉ có thể chọn tối đa 8 ghế.");
+        // Enforce maximum 8 seats GLOBALLY across all trains (Outbound + Return)
+        const myTotalLocks = getMyLocks().filter(l => isMyLock(l.scheduleId, l.seatId)).length;
+        if (myTotalLocks >= 8) {
+          toast.error('Chỉ được chọn tối đa 8 vé trên hệ thống cho một lần đặt.');
+          setProcessingId(null);
           return;
         }
-        
         if (!departureStationId || !arrivalStationId) {
             toast.error("Thiếu thông tin ga đi/đến để khóa ghế.");
             return;
         }
         
         const response: any = await seatService.lockSeat(scheduleId, seat.seatNumber, departureStationId, arrivalStationId);
-        const seatExpiresAt = response?.data?.expiresAt ?? Date.now() + 5 * 60 * 1000;
+        // Bỏ qua expiresAt của server vì nếu sai lệch múi giờ, client sẽ bị set isExpired = true và tự động xóa khỏi giỏ vé ngay lập tức
+        const seatExpiresAt = Date.now() + 5 * 60 * 1000;
         
         addMyLock(scheduleId, seat.seatId);
         onSeatSelect({ ...seat, expiresAt: seatExpiresAt });
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Thao tác thất bại. Ghế có thể đã bị khóa.");
+      if (!isCurrentlySelected) {
+         toast.error(err.response?.data?.message || "Thao tác thất bại. Ghế có thể đã bị khóa.");
+      }
     } finally {
       setProcessingId(null);
     }

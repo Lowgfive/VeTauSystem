@@ -16,15 +16,25 @@ interface CarriageTemplate {
 }
 
 const TRAIN_4CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "hard_seat", count: 4, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "soft_seat", count: 1, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "hard_seat", count: 1, seats_per_carriage: 60, standing_capacity: 0, layout: { rows: 15, cols: 4 }, priority_seats: 0 },
+    { seat_type: "sleeper_6", count: 1, seats_per_carriage: 42, standing_capacity: 0, layout: { rows: 7, cols: 6 }, priority_seats: 0 },
+    { seat_type: "vip_sleeper_2", count: 1, seats_per_carriage: 14, standing_capacity: 0, layout: { rows: 7, cols: 2 }, priority_seats: 0 },
 ];
 
 const TRAIN_6CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "hard_seat", count: 6, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "soft_seat", count: 2, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "hard_seat", count: 2, seats_per_carriage: 60, standing_capacity: 0, layout: { rows: 15, cols: 4 }, priority_seats: 0 },
+    { seat_type: "sleeper_6", count: 1, seats_per_carriage: 42, standing_capacity: 0, layout: { rows: 7, cols: 6 }, priority_seats: 0 },
+    { seat_type: "vip_sleeper_2", count: 1, seats_per_carriage: 14, standing_capacity: 0, layout: { rows: 7, cols: 2 }, priority_seats: 0 },
 ];
 
 const TRAIN_8CAR_TEMPLATE: CarriageTemplate[] = [
-    { seat_type: "hard_seat", count: 8, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "soft_seat", count: 2, seats_per_carriage: 44, standing_capacity: 0, layout: { rows: 11, cols: 4 }, priority_seats: 0 },
+    { seat_type: "hard_seat", count: 3, seats_per_carriage: 60, standing_capacity: 0, layout: { rows: 15, cols: 4 }, priority_seats: 0 },
+    { seat_type: "sleeper_6", count: 1, seats_per_carriage: 42, standing_capacity: 0, layout: { rows: 7, cols: 6 }, priority_seats: 0 },
+    { seat_type: "sleeper_4", count: 1, seats_per_carriage: 28, standing_capacity: 0, layout: { rows: 7, cols: 4 }, priority_seats: 0 },
+    { seat_type: "vip_sleeper_2", count: 1, seats_per_carriage: 14, standing_capacity: 0, layout: { rows: 7, cols: 2 }, priority_seats: 0 },
 ];
 
 const TEMPLATE_MAP: Record<TrainType, CarriageTemplate[]> = {

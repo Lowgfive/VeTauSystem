@@ -8,6 +8,7 @@ import { Shield, ArrowLeft, Users, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '../config/api';
 import { CountdownDisplay } from '../components/CountdownDisplay';
+import { calculateSeatPrice } from '../utils/pricing';
 
 export default function PassengerInfoPage() {
   const { scheduleId } = useParams<{ scheduleId: string }>();
@@ -104,21 +105,22 @@ export default function PassengerInfoPage() {
     return 0;
   };
 
-  const calculateFare = (passenger: Passenger | undefined, baseP: number) => {
-    if (!passenger) return baseP + insuranceFee;
+  const calculateFare = (passenger: Passenger | undefined, baseP: number, seatType: string) => {
+    const adjustedBasePrice = calculateSeatPrice(baseP, seatType);
+    if (!passenger) return adjustedBasePrice + insuranceFee;
     const discountRate = getDiscountRate(passenger.passengerType);
-    return (baseP * (1 - discountRate)) + insuranceFee;
+    return (adjustedBasePrice * (1 - discountRate)) + insuranceFee;
   };
 
   const totalPriceOutbound = useMemo(() => {
-    if (passengers.length === 0) return outboundSeats.length * (basePriceOutbound + insuranceFee); 
-    return passengers.reduce((sum, p) => sum + calculateFare(p, basePriceOutbound), 0);
+    if (passengers.length === 0) return outboundSeats.reduce((sum: number, s: any) => sum + calculateSeatPrice(basePriceOutbound, s.seatType) + insuranceFee, 0); 
+    return passengers.reduce((sum, p, i) => sum + calculateFare(p, basePriceOutbound, outboundSeats[i]?.seatType), 0);
   }, [passengers, basePriceOutbound, insuranceFee, outboundSeats]);
 
   const totalPriceReturn = useMemo(() => {
     if (!isRoundTrip) return 0;
-    if (passengers.length === 0) return returnSeats.length * (basePriceReturn + insuranceFee); 
-    return passengers.reduce((sum, p) => sum + calculateFare(p, basePriceReturn), 0);
+    if (passengers.length === 0) return returnSeats.reduce((sum: number, s: any) => sum + calculateSeatPrice(basePriceReturn, s.seatType) + insuranceFee, 0); 
+    return passengers.reduce((sum, p, i) => sum + calculateFare(p, basePriceReturn, returnSeats[i]?.seatType), 0);
   }, [passengers, basePriceReturn, insuranceFee, returnSeats, isRoundTrip]);
 
   const handleContinue = () => {
@@ -128,6 +130,7 @@ export default function PassengerInfoPage() {
     }
 
     // Now format data for Payment page
+
     const buildBookingData = (sch: any, sts: any[], tripTotalPrice: number) => {
       // Normalize departure time - backend uses different field names
       const rawDepartureTime = sch?.departureTime || sch?.departure_time || sch?.depart_time || "N/A";
@@ -178,6 +181,8 @@ export default function PassengerInfoPage() {
       };
     };
 
+
+
     const bookingDataOutbound = buildBookingData(outboundSchedule, outboundSeats, totalPriceOutbound);
     const bookingDataReturn = isRoundTrip ? buildBookingData(returnSchedule, returnSeats, totalPriceReturn) : null;
     
@@ -217,7 +222,7 @@ export default function PassengerInfoPage() {
                 passengerNumber={index + 1}
                 seatNumber={isRoundTrip ? `${seat.seatNumber} (đi) - ${returnSeats[index]?.seatNumber || ''} (về)` : seat.seatNumber}
                 seatId={seat.seatId}
-                basePrice={basePriceOutbound}
+                basePrice={calculateSeatPrice(basePriceOutbound, seat.seatType)}
                 insuranceFee={insuranceFee}
                 onPassengerUpdate={(p) => handlePassengerUpdate(index, p)}
                 onRemoveSeat={() => handleRemoveSeat(seat.seatId, outboundSchedule.id)}

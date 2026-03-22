@@ -41,7 +41,6 @@ export function PassengerForm({
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pendingType, setPendingType] = useState<PassengerType | null>(null);
-  const [tempDob, setTempDob] = useState('');
 
   const { errors, touched, validateSingle, touch, hasError, getError } = useFormValidation({
     fullName: commonRules.fullName,
@@ -96,20 +95,12 @@ export function PassengerForm({
       handleChange('passengerType', type);
     } else {
       setPendingType(type);
-      setTempDob(passenger.dateOfBirth || '');
       setIsDialogOpen(true);
     }
   };
 
   const confirmTypeChange = () => {
     if (pendingType) {
-      if ((pendingType === 'Trẻ em' || pendingType === 'Người cao tuổi')) {
-          if (!tempDob) {
-              validateSingle('dateOfBirth', '');
-              return; // require dob for these types
-          }
-          handleChange('dateOfBirth', tempDob);
-      }
       handleChange('passengerType', pendingType);
       setIsDialogOpen(false);
       setPendingType(null);
@@ -155,20 +146,10 @@ export function PassengerForm({
             Cảnh báo: Hành khách nhập sai đối tượng được giảm giá sẽ bị phạt theo quy định của ngành đường sắt.
           </p>
 
-          {(pendingType === 'Trẻ em' || pendingType === 'Người cao tuổi') && (
-            <div className="pt-4">
-              <Input
-                type="date"
-                value={tempDob}
-                onChange={(e) => setTempDob(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-          )}
         </div>
         <DialogFooter className="flex justify-between sm:justify-between w-full">
           <Button variant="outline" onClick={cancelTypeChange}>Hủy</Button>
-          <Button onClick={confirmTypeChange} disabled={(pendingType === 'Trẻ em' || pendingType === 'Người cao tuổi') && !tempDob}>Xác nhận</Button>
+          <Button onClick={confirmTypeChange}>Xác nhận</Button>
         </DialogFooter>
       </>
     );

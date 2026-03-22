@@ -14,6 +14,7 @@ import { seatService, SeatInfo } from '../services/seat.service';
 import { CountdownDisplay } from './CountdownDisplay';
 import { toast } from 'sonner';
 import { removeMyLock } from '../utils/mySeatLocks';
+import { calculateSeatPrice } from '../utils/pricing';
 
 interface DisplaySearchParams {
   originName: string;
@@ -211,9 +212,22 @@ export function TrainSearchResults({
     }
   }, [schedules, selectedDeparture?.id, selectedReturn?.id]);
 
+  const outboundSeatsRef = React.useRef(outboundSeats);
+  useEffect(() => { outboundSeatsRef.current = outboundSeats; }, [outboundSeats]);
+
+  const returnSeatsRef = React.useRef(returnSeats);
+  useEffect(() => { returnSeatsRef.current = returnSeats; }, [returnSeats]);
+
   // Reset seats if a DIFFERENT train is selected
   useEffect(() => { 
     if (selectedDeparture?.id !== prevDepartureId.current) {
+      const oldScheduleId = prevDepartureId.current;
+      if (oldScheduleId && outboundSeatsRef.current.length > 0) {
+         outboundSeatsRef.current.forEach(seat => {
+            seatService.unlockSeat(oldScheduleId, seat.seatNumber).catch(() => {});
+            removeMyLock(oldScheduleId, seat.seatId);
+         });
+      }
       setOutboundSeats([]); 
       prevDepartureId.current = selectedDeparture?.id;
     }
@@ -221,6 +235,13 @@ export function TrainSearchResults({
   
   useEffect(() => { 
     if (selectedReturn?.id !== prevReturnId.current) {
+      const oldScheduleId = prevReturnId.current;
+      if (oldScheduleId && returnSeatsRef.current.length > 0) {
+         returnSeatsRef.current.forEach(seat => {
+            seatService.unlockSeat(oldScheduleId, seat.seatNumber).catch(() => {});
+            removeMyLock(oldScheduleId, seat.seatId);
+         });
+      }
       setReturnSeats([]); 
       prevReturnId.current = selectedReturn?.id;
     }
@@ -306,8 +327,8 @@ export function TrainSearchResults({
   };
 
   let totalPrice = 0;
-  outboundSeats.forEach(s => totalPrice += selectedDeparture?.basePrice || 0);
-  returnSeats.forEach(s => totalPrice += selectedReturn?.basePrice || 0);
+  outboundSeats.forEach(s => totalPrice += calculateSeatPrice(selectedDeparture?.basePrice || 0, s.seatType));
+  returnSeats.forEach(s => totalPrice += calculateSeatPrice(selectedReturn?.basePrice || 0, s.seatType));
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -487,7 +508,7 @@ export function TrainSearchResults({
                                 <div key={seat.seatId} className="flex justify-between items-center bg-blue-50/50 p-2.5 rounded-xl border border-blue-100 group">
                                    <div>
                                      <span className="font-black text-blue-800 text-sm bg-blue-100/50 px-2 py-0.5 rounded mr-2">{seat.seatNumber}</span>
-                                     <span className="text-xs font-semibold text-slate-600">{formatPrice(selectedDeparture?.basePrice || 0)}</span>
+                                     <span className="text-xs font-semibold text-slate-600">{formatPrice(calculateSeatPrice(selectedDeparture?.basePrice || 0, seat.seatType))}</span>
                                    </div>
                                    <div className="flex items-center gap-3">
                                      {seat.expiresAt && <CountdownDisplay expiresAt={seat.expiresAt} className="text-[10px] py-0.5 border-none shadow-none" onExpire={() => handleRemoveSeat(seat.seatId, 'outbound')} />}
@@ -510,7 +531,7 @@ export function TrainSearchResults({
                                 <div key={seat.seatId} className="flex justify-between items-center bg-teal-50/50 p-2.5 rounded-xl border border-teal-100 group">
                                    <div>
                                      <span className="font-black text-teal-800 text-sm bg-teal-100/50 px-2 py-0.5 rounded mr-2">{seat.seatNumber}</span>
-                                     <span className="text-xs font-semibold text-slate-600">{formatPrice(selectedReturn?.basePrice || 0)}</span>
+                                     <span className="text-xs font-semibold text-slate-600">{formatPrice(calculateSeatPrice(selectedReturn?.basePrice || 0, seat.seatType))}</span>
                                    </div>
                                    <div className="flex items-center gap-3">
                                      {seat.expiresAt && <CountdownDisplay expiresAt={seat.expiresAt} className="text-[10px] py-0.5 border-none shadow-none text-teal-700 bg-teal-100" onExpire={() => handleRemoveSeat(seat.seatId, 'return')} />}
