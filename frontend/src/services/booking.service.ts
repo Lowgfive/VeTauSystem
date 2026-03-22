@@ -43,7 +43,7 @@ export async function cancelBooking(bookingId: string) {
   return res.data;
 }
 
-export async function changeBookingSchedule(bookingId: string, payload: { new_schedule_id: string; new_seat_id: string }) {
+export async function changeBookingSchedule(bookingId: string, payload: { new_schedule_id: string; new_seat_ids: string[] }) {
   const res = await apiClient.post(`/bookings/change-schedule/${bookingId}`, payload);
   return res.data;
 }

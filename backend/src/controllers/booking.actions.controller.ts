@@ -5,6 +5,7 @@ import BookingModel from "../models/booking.model";
 import { Seat } from "../models/seat.model";
 import { Passenger } from "../models/passenger.model";
 import { BookingPassenger } from "../models/bookingpassenger.model";
+import { Schedule } from "../models/schedule.model";
 import mongoose from "mongoose";
 
 const generateBookingCode = (): string => {
@@ -91,9 +92,13 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
     const passenger_type = req.body.passenger_type || "adult";
     const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type);
 
+    const scheduleDetail = await Schedule.findById(schedule_id).populate("route_id");
+    
     const booking = await BookingModel.create({
         user_id: new mongoose.Types.ObjectId(userId),
         schedule_id: new mongoose.Types.ObjectId(schedule_id),
+        departure_station_id: (scheduleDetail?.route_id as any)?.departure_station_id,
+        arrival_station_id: (scheduleDetail?.route_id as any)?.arrival_station_id,
         total_amount: fareDetails.total_fare,
         status: "pending",
     });
@@ -153,26 +158,28 @@ export const refundTicket = asyncHandler(async (req: AuthRequest, res: Response)
         await Seat.updateMany({ _id: { $in: seatIds } }, { status: "available" });
     }
 
+    // Update mappings status
     await BookingPassenger.updateMany({ booking_id: booking._id }, { status: "refunded" });
 
     // Update booking status
+    // Update booking status using updateOne to bypass validation of missing required fields on legacy records
+    await BookingModel.updateOne({ _id: booking._id }, { status: "refunded" });
     booking.status = "refunded";
-    await booking.save();
 
     res.status(200).json({
         success: true,
-        message: "Hoàn vé thành công",
+        message: "Hủy vé thành công",
         data: booking,
     });
 });
 
 export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { bookingId } = req.params;
-    const { new_schedule_id, new_seat_id } = req.body;
+    const { new_schedule_id, new_seat_ids } = req.body; // Changed to new_seat_ids (array)
     const userId = req.user?.userId;
 
-    if (!new_schedule_id || !new_seat_id) {
-        return res.status(400).json({ success: false, message: "Thiếu new_schedule_id hoặc new_seat_id" });
+    if (!new_schedule_id || !new_seat_ids || !Array.isArray(new_seat_ids) || new_seat_ids.length === 0) {
+        return res.status(400).json({ success: false, message: "Thiếu new_schedule_id hoặc danh sách new_seat_ids" });
     }
 
     const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId });
@@ -185,35 +192,54 @@ export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Respons
         return res.status(400).json({ success: false, message: "Vé không thể đổi lịch (trạng thái không hợp lệ)" });
     }
 
-    // Check new seat availability
-    const newSeat = await Seat.findById(new_seat_id);
-    if (!newSeat) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy ghế mới" });
+    // Check all new seats availability
+    const newSeats = await Seat.find({ _id: { $in: new_seat_ids } });
+    if (newSeats.length !== new_seat_ids.length) {
+        return res.status(404).json({ success: false, message: "Một số ghế mới không tìm thấy" });
     }
-    if (newSeat.status === "booked") {
-        return res.status(409).json({ success: false, message: "Ghế mới đã được đặt" });
+    
+    const unavailableSeats = newSeats.filter(s => s.status === "booked");
+    if (unavailableSeats.length > 0) {
+        return res.status(409).json({ 
+            success: false, 
+            message: `Ghế ${unavailableSeats.map(s => s.seat_number).join(", ")} đã được đặt` 
+        });
     }
 
-    // Handle bps logic
+    // Handle bps logic - swap old seats for new seats
     const bps = await BookingPassenger.find({ booking_id: booking._id });
-    if (bps.length > 0) {
-        // Assume single seat for old flow backward compatibility
-        const oldSeatId = bps[0].seat_id;
-        await Seat.findByIdAndUpdate(oldSeatId, { status: "available" });
-        bps[0].seat_id = new mongoose.Types.ObjectId(new_seat_id);
-        bps[0].ticket_price = newSeat.price ?? 0;
-        await bps[0].save();
+    const oldSeatIds = bps.map(bp => bp.seat_id);
+    
+    // Free old seats
+    await Seat.updateMany({ _id: { $in: oldSeatIds } }, { status: "available" });
+
+    // Map new seats to existing passengers (or as many as we have)
+    // For simplicity, we assume the user selected the same number of seats or we handle the mismatch
+    for (let i = 0; i < bps.length; i++) {
+        if (new_seat_ids[i]) {
+            const newSeatData = newSeats.find(s => s._id.toString() === new_seat_ids[i].toString());
+            bps[i].seat_id = new mongoose.Types.ObjectId(new_seat_ids[i]);
+            bps[i].ticket_price = newSeatData?.price ?? 0;
+            bps[i].status = "confirmed";
+            await bps[i].save();
+        }
     }
 
-    // Book new seat
-    newSeat.status = "booked";
-    await newSeat.save();
+    // Book new seats
+    await Seat.updateMany({ _id: { $in: new_seat_ids } }, { status: "booked" });
 
     // Update booking
-    booking.schedule_id = new mongoose.Types.ObjectId(new_schedule_id);
-    booking.total_amount = newSeat.price ?? 0;
+    const totalAmount = newSeats.reduce((sum, s) => sum + (s.price ?? 0), 0);
+    // Update booking using updateOne to bypass validation of missing required fields on legacy records
+    await BookingModel.updateOne(
+        { _id: booking._id },
+        {
+            schedule_id: new mongoose.Types.ObjectId(new_schedule_id),
+            total_amount: totalAmount,
+            status: "changed"
+        }
+    );
     booking.status = "changed";
-    await booking.save();
 
     res.status(200).json({
         success: true,

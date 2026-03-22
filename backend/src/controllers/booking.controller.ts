@@ -10,8 +10,10 @@ import { Schedule } from "../models/schedule.model";
 import * as seatLockService from "../services/seat.service";
 
 export const createBooking = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { scheduleId, totalAmount, seats } = req.body as {
+    const { scheduleId, totalAmount, seats, departureStationId, arrivalStationId } = req.body as {
         scheduleId: string;
+        departureStationId?: string;
+        arrivalStationId?: string;
         totalAmount: number;
         seats: {
             seat_id: string;
@@ -131,6 +133,8 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
 
         booking_code,
         total_amount: totalAmount,
+        departure_station_id: departureStationId || schedule.route_id?.departure_station_id,
+        arrival_station_id: arrivalStationId || schedule.route_id?.arrival_station_id,
         status: "pending",
 
     });
@@ -181,6 +185,8 @@ export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response
     const userId = req.user?.userId;
 
     const bookings = await BookingModel.find({ user_id: userId })
+        .populate("departure_station_id")
+        .populate("arrival_station_id")
         .populate({
             path: "schedule_id",
             populate: [
@@ -216,6 +222,8 @@ export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response
 export const getAllBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bookings = await BookingModel.find()
         .populate({ path: "user_id", select: "name email phone" })
+        .populate("departure_station_id")
+        .populate("arrival_station_id")
         .populate({
             path: "schedule_id",
             populate: [

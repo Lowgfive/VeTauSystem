@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IBooking extends Document {
     user_id: mongoose.Types.ObjectId;
     schedule_id: mongoose.Types.ObjectId;
+    departure_station_id: mongoose.Types.ObjectId;
+    arrival_station_id: mongoose.Types.ObjectId;
     booking_code?: string;
     total_amount: number;
     status: "pending" | "confirmed" | "cancelled" | "refunded" | "changed" | "paid";
@@ -21,6 +23,16 @@ const BookingSchema = new Schema<IBooking>(
         schedule_id: {
             type: Schema.Types.ObjectId,
             ref: "Schedule",
+            required: true,
+        },
+        departure_station_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Station",
+            required: true,
+        },
+        arrival_station_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Station",
             required: true,
         },
         booking_code: {

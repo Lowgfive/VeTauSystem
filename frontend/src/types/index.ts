@@ -97,7 +97,7 @@ export interface Booking {
   schedule: Schedule;
   passengers: Passenger[];
   totalAmount: number;
-  status: 'confirmed' | 'cancelled' | 'pending' | 'completed';
+  status: 'confirmed' | 'cancelled' | 'pending' | 'completed' | 'paid' | 'refunded';
   paymentStatus: 'paid' | 'pending' | 'refunded';
   paymentMethod: 'credit-card' | 'bank-transfer' | 'momo' | 'vnpay';
   createdAt: string;

@@ -285,7 +285,7 @@ export function TrainSearchResults({
       if (!seat || !schedule) return;
 
       try {
-          await seatService.unlockSeat(schedule.id, seat.seatNumber);
+          await seatService.unlockSeat(schedule.id, seat.seatId);
           removeMyLock(schedule.id, seatId);
           setSeats(prev => prev.filter(s => s.seatId !== seatId));
       } catch(e: any) {

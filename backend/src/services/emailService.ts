@@ -180,6 +180,14 @@ export const sendRegisterOtpEmail = async ({
     `;
 
     try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.log(`\n==================================================`);
+            console.log(`🟢 [DEV MODE] OTP for ${to}: ${otp}`);
+            console.log(`⚠️ EMAIL_USER/PASS not configured. Skipping email send.`);
+            console.log(`==================================================\n`);
+            return;
+        }
+
         await transporter.sendMail({
             from: `"VéTàu System" <${process.env.EMAIL_USER}>`,
             to,
@@ -188,6 +196,11 @@ export const sendRegisterOtpEmail = async ({
         });
     } catch (error) {
         console.error("⚠️ [EmailService] Không thể gửi email OTP đăng ký. SMTP Error:", (error as Error).message);
+        // In development, don't crash if email fails
+        if (process.env.NODE_ENV !== "production") {
+            console.log(`🟢 [DEV MODE] Email failed but continuing... OTP was: ${otp}`);
+            return;
+        }
         throw new Error("Không thể gửi mã OTP tới email của bạn. Vui lòng kiểm tra lại địa chỉ email.");
     }
 };

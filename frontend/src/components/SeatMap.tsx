@@ -18,6 +18,8 @@ import { seatService, SeatInfo } from '../services/seat.service';
 import { toast } from 'sonner';
 import { getSocket, connectSocket, joinScheduleRoom, leaveScheduleRoom } from '../config/socket';
 import { addMyLock, removeMyLock, isMyLock, getMyLocks } from '../utils/mySeatLocks';
+import { useAppSelector } from "../hooks/useRedux";
+import { useNavigate, useLocation } from "react-router-dom";
 
 
 // Reusable Seat Item Internal Component
@@ -107,6 +109,10 @@ export interface SeatMapProps {
 export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onSeatDeselect, onRestoreHeldSeats }: SeatMapProps) {
   const departureStationId = schedule?.origin?.id || schedule?.originId;
   const arrivalStationId = schedule?.destination?.id || schedule?.destinationId;
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAppSelector((s) => s.auth);
 
   const [seats, setSeats] = useState<SeatInfo[]>([]);
 
@@ -227,6 +233,13 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
         removeMyLock(scheduleId, seat.seatId);
         onSeatDeselect(seat.seatId);
       } else {
+        // Auth check
+        if (!isAuthenticated) {
+          toast.info("Vui lòng đăng nhập để chọn ghế");
+          navigate("/login", { state: { from: location.pathname + location.search } });
+          return;
+        }
+
         // Enforce maximum 8 seats GLOBALLY across all trains (Outbound + Return)
         const myTotalLocks = getMyLocks().filter(l => isMyLock(l.scheduleId, l.seatId)).length;
         if (myTotalLocks >= 8) {
@@ -239,12 +252,21 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
             return;
         }
         
-        const response: any = await seatService.lockSeat(scheduleId, seat.seatId, departureStationId, arrivalStationId);
-        // Bỏ qua expiresAt của server vì nếu sai lệch múi giờ, client sẽ bị set isExpired = true và tự động xóa khỏi giỏ vé ngay lập tức
-        const seatExpiresAt = Date.now() + 5 * 60 * 1000;
-        
-        addMyLock(scheduleId, seat.seatId);
-        onSeatSelect({ ...seat, expiresAt: seatExpiresAt });
+        try {
+          const response: any = await seatService.lockSeat(scheduleId, seat.seatId, departureStationId, arrivalStationId);
+          // Bỏ qua expiresAt của server vì nếu sai lệch múi giờ, client sẽ bị set isExpired = true và tự động xóa khỏi giỏ vé ngay lập tức
+          const seatExpiresAt = Date.now() + 5 * 60 * 1000;
+          
+          addMyLock(scheduleId, seat.seatId);
+          onSeatSelect({ ...seat, expiresAt: seatExpiresAt });
+        } catch (err: any) {
+          if (err.response?.status === 401) {
+            toast.error("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.");
+            navigate("/login", { state: { from: location.pathname + location.search } });
+          } else {
+            throw err; // Re-throw for outer catch
+          }
+        }
       }
     } catch (err: any) {
       if (!isCurrentlySelected) {

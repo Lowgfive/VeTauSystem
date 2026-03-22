@@ -44,6 +44,8 @@ interface BookingDataType {
   duration: string;
   seats: SeatData[];
   totalPrice: number;
+  departureStationId?: string;
+  arrivalStationId?: string;
 }
 
 interface PaymentPageProps {
@@ -105,6 +107,8 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
             base_price: s.base_price || s.ticket_price,
             insurance: s.insurance || 0,
           })),
+          departureStationId: b.departureStationId,
+          arrivalStationId: b.arrivalStationId,
         });
 
         if (!res.data?.success) {
@@ -193,7 +197,7 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
                   <Checkbox
                     id="terms"
                     checked={acceptTerms}
-                    onCheckedChange={(v) => setAcceptTerms(v === true)}
+                    onCheckedChange={(v: boolean | "indeterminate") => setAcceptTerms(v === true)}
                     className="mt-1"
                   />
                   <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">

@@ -27,7 +27,7 @@ export default function PaymentResultPage() {
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={() => navigate("/my-bookings")}
+                                onClick={() => navigate("/manage")}
                                 className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
                             >
                                 Xem vé của tôi
