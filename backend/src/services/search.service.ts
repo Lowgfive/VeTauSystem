@@ -28,6 +28,7 @@ interface TrainResult {
   distance: number;
   duration: string;
   price: number;
+  date?: Date | string;
   availableSeats?: number;
   train?: any;
   departure_station_id?: string;
@@ -270,6 +271,7 @@ private static async searchOneWay(
       arrival_station: arrStation.station_name,
       departure_station_id: String(depStation._id),
       arrival_station_id: String(arrStation._id),
+      date: firstLeg.date,
       departure_time: firstLeg.departure_time,
       arrival_time: arrivalTime,
       distance,

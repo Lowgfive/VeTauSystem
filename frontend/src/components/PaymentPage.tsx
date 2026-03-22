@@ -1,165 +1,75 @@
 import { useState } from "react";
-import { createBooking } from "../services/booking.service";
+import { useNavigate } from "react-router-dom";
+import { apiClient } from "../config/api";
 import { toast } from "sonner";
 import {
   Train,
   ArrowLeft,
   CreditCard,
-  Smartphone,
-  QrCode,
   Shield,
   Lock,
   CheckCircle,
-  AlertCircle,
   Clock,
-  MapPin,
-  User,
   Calendar,
-  Ticket,
-  ChevronRight,
-  Info,
   Loader2,
+  Ticket,
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
-import { useCartStore } from "../store/cartStore";
-import { useSeatTimer } from "../hooks/useSeatTimer";
-import { CountdownDisplay } from "./CountdownDisplay";
+
+interface SeatData {
+  seat_id: string;
+  seat_number?: string;
+  full_name: string;
+  id_number: string;
+  dob?: string;
+  gender?: string;
+  passenger_type?: string;
+  ticket_price: number;
+  base_price?: number;
+  insurance?: number;
+  discount_rate?: number;
+}
 
 interface BookingDataType {
-    trainCode: string;
-    trainName: string;
-    route: {
-      origin: string;
-      destination: string;
-    };
-    date: string;
-    departureTime: string;
-    arrivalTime: string;
-    duration: string;
-    seats: any[];
-    passengers: {
-      name: string;
-      id: string;
-      phone: string;
-    }[];
-    totalPrice: number;
-    scheduleId?: string;
-    departureStationId?: string;
-    arrivalStationId?: string;
+  scheduleId: string;
+  trainCode: string;
+  trainName: string;
+  route: { origin: string; destination: string };
+  date: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+  seats: SeatData[];
+  totalPrice: number;
 }
 
 interface PaymentPageProps {
   onBack: () => void;
-  onPaymentSuccess?: () => void;
   bookingData?: BookingDataType | BookingDataType[];
 }
 
-export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPageProps) {
-  const [paymentMethod, setPaymentMethod] = useState("qr");
+export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
+  const navigate = useNavigate();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [cardData, setCardData] = useState({
-    number: "",
-    name: "",
-    expiry: "",
-    cvv: "",
-  });
 
-  const expiresAt = useCartStore((state) => state.expiresAt);
-  const { isExpired } = useSeatTimer(expiresAt);
+  const bookings: BookingDataType[] = bookingData
+    ? (Array.isArray(bookingData) ? bookingData : [bookingData])
+    : [];
 
-  // Mock booking data if not provided
-  const mockBooking: BookingDataType = {
-    trainCode: "SE1",
-    trainName: "Thống Nhất",
-    route: {
-      origin: "Hà Nội",
-      destination: "Sài Gòn",
-    },
-    date: "2026-02-15",
-    departureTime: "19:00",
-    arrivalTime: "04:30",
-    duration: "30h 30m",
-    seats: [
-      { seat_id: "mock1", seat_number: "A12", full_name: "Nguyễn Văn A", id_number: "001234567890", test_price: 950000 },
-      { seat_id: "mock2", seat_number: "A13", full_name: "Trần Thị B", id_number: "001234567891", test_price: 950000 }
-    ],
-    passengers: [
-      { name: "Nguyễn Văn A", id: "001234567890", phone: "0987654321" },
-      { name: "Trần Thị B", id: "001234567891", phone: "0987654322" },
-    ],
-    totalPrice: 1900000,
-  };
+  const grandTotal = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
-  const bookings: BookingDataType[] = bookingData 
-    ? (Array.isArray(bookingData) ? bookingData : [bookingData]) 
-    : [mockBooking];
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
-  const grandTotal = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
-  const totalSeats = bookings.reduce((sum, b) => sum + b.seats.length, 0);
-
-  const paymentMethods = [
-    {
-      id: "qr",
-      name: "Quét mã QR",
-      icon: QrCode,
-      description: "VNPay, MoMo, ZaloPay",
-      badge: "Nhanh nhất",
-      badgeColor: "bg-green-100 text-green-800",
-    },
-    {
-      id: "card",
-      name: "Thẻ ATM/Tín dụng",
-      icon: CreditCard,
-      description: "Visa, MasterCard, JCB",
-      badge: "Phổ biến",
-      badgeColor: "bg-blue-100 text-blue-800",
-    },
-    {
-      id: "ewallet",
-      name: "Ví điện tử",
-      icon: Smartphone,
-      description: "MoMo, ZaloPay, VNPay",
-      badge: "Ưu đãi 5%",
-      badgeColor: "bg-orange-100 text-orange-800",
-    },
-  ];
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
-  };
-
-  const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, "");
-    const chunks = cleaned.match(/.{1,4}/g);
-    return chunks ? chunks.join(" ") : cleaned;
-  };
-
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\s/g, "");
-    if (/^\d{0,16}$/.test(value)) {
-      setCardData({ ...cardData, number: value });
-    }
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (value.length >= 2) {
-      value = value.slice(0, 2) + "/" + value.slice(2, 4);
-    }
-    setCardData({ ...cardData, expiry: value });
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("vi-VN");
   };
 
   const handlePayment = async () => {
@@ -168,538 +78,255 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
       return;
     }
 
+    if (bookings.length === 0 || bookings.some((b) => !b.scheduleId)) {
+      toast.error("Dữ liệu đặt vé không hợp lệ. Vui lòng quay lại và thử lại.");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      if (bookings.some(b => !b.scheduleId)) {
-         toast.error("Dữ liệu thanh toán không hợp lệ (thử quay lại và đặt lại).");
-         setIsProcessing(false);
-         return;
-      }
-      
-      await Promise.all(bookings.map(b => createBooking({
-        scheduleId: b.scheduleId!,
-        totalAmount: b.totalPrice,
-        seats: b.seats
-      })));
+      // 1. Create booking(s) in backend
+      const createdIds: string[] = [];
 
-      setIsProcessing(false);
-      setShowSuccessModal(true);
-      
-      // Call success callback after 2 seconds
-      setTimeout(() => {
-        if (onPaymentSuccess) {
-          onPaymentSuccess();
+      for (const b of bookings) {
+        const res = await apiClient.post("/bookings/create", {
+          scheduleId: b.scheduleId,
+          totalAmount: b.totalPrice,
+          seats: b.seats.map((s) => ({
+            seat_id: s.seat_id,
+            full_name: s.full_name,
+            id_number: s.id_number,
+            dob: s.dob,
+            gender: s.gender || "Unknown",
+            ticket_price: s.ticket_price,
+            passenger_type: s.passenger_type || "Người lớn",
+            discount_rate: s.discount_rate || 0,
+            base_price: s.base_price || s.ticket_price,
+            insurance: s.insurance || 0,
+          })),
+        });
+
+        if (!res.data?.success) {
+          throw new Error(res.data?.message || "Tạo booking thất bại");
         }
-      }, 2000);
-    } catch (error: any) {
+        createdIds.push(res.data.data.booking._id);
+      }
+
+      // 2. Request VNPay payment URL
+      const payRes = await apiClient.post("/payments/create-payment", {
+        booking_ids: createdIds,
+      });
+
+      if (!payRes.data?.success) {
+        throw new Error(payRes.data?.message || "Không thể tạo giao dịch thanh toán");
+      }
+
+      const paymentUrl = payRes.data.data.paymentUrl;
+
+      // 3. Redirect to VNPay
+      window.location.href = paymentUrl;
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.");
       setIsProcessing(false);
-      toast.error(error.response?.data?.message || "Thanh toán thất bại hoặc ghế đã bị mất.");
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
-      {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 bg-primary text-white shadow-railway-lg z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 shadow-lg">
-                <Train className="w-7 h-7 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="font-bold text-xl leading-tight tracking-tight">
-                  Đường Sắt Việt Nam
-                </h1>
-                <p className="text-xs text-white/90 font-medium">
-                  Thanh Toán An Toàn
-                </p>
-              </div>
-            </div>
+  if (bookings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Ticket className="w-16 h-16 text-gray-300" />
+        <h2 className="text-xl font-bold text-gray-700">Không có thông tin đặt vé</h2>
+        <p className="text-gray-500">Vui lòng quay lại và chọn ghế trước khi thanh toán.</p>
+        <Button onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+        </Button>
+      </div>
+    );
+  }
 
-            {/* Security Badge */}
-            <div className="flex items-center gap-3">
-              {expiresAt && (
-                <div className="bg-white rounded-lg shadow">
-                   <CountdownDisplay 
-                     expiresAt={expiresAt} 
-                     onExpire={() => {
-                        alert("Đã hết thời gian giữ chỗ. Vui lòng đặt lại.");
-                        onBack();
-                     }} 
-                   />
-                </div>
-              )}
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-lg border border-white/30">
-                <Shield className="w-5 h-5 text-white" />
-                <span className="text-sm font-semibold">Bảo mật SSL</span>
-              </div>
-              <Button
-                onClick={onBack}
-                variant="secondary"
-                size="sm"
-                className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại
-              </Button>
-            </div>
-          </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white border-b shadow-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors font-medium"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Quay lại
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Thanh toán</h1>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 pt-20">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left: Payment Form */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Payment Method Selection */}
-                <Card className="p-6">
-                  <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
-                    <CreditCard className="w-6 h-6 text-primary" />
-                    Chọn phương thức thanh toán
-                  </h3>
-
-                  <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <div className="space-y-3">
-                      {paymentMethods.map((method) => (
-                        <label
-                          key={method.id}
-                          className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                            paymentMethod === method.id
-                              ? "border-primary bg-primary/5 shadow-lg"
-                              : "border-gray-200 hover:border-gray-300 hover:shadow-md"
-                          }`}
-                        >
-                          <RadioGroupItem value={method.id} id={method.id} />
-                          <div className="flex items-center gap-4 flex-1">
-                            <div
-                              className={`p-3 rounded-xl ${
-                                paymentMethod === method.id
-                                  ? "bg-primary text-white"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              <method.icon className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-gray-900">
-                                  {method.name}
-                                </span>
-                                {method.badge && (
-                                  <Badge className={method.badgeColor}>
-                                    {method.badge}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600">
-                                {method.description}
-                              </p>
-                            </div>
-                            {paymentMethod === method.id && (
-                              <CheckCircle className="w-6 h-6 text-primary" />
-                            )}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </RadioGroup>
-                </Card>
-
-                {/* Payment Details */}
-                <Card className="p-6">
-                  <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
-                    <Lock className="w-6 h-6 text-primary" />
-                    Thông tin thanh toán
-                  </h3>
-
-                  {paymentMethod === "qr" && (
-                    <div className="text-center py-8">
-                      <div className="w-64 h-64 bg-white border-4 border-gray-200 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-xl">
-                        <div className="text-center">
-                          <QrCode className="w-48 h-48 text-gray-300 mx-auto mb-4" />
-                          <p className="text-sm text-gray-500">
-                            Mã QR sẽ hiện sau khi xác nhận
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center gap-4 mb-4">
-                        <img
-                          src="https://placehold.co/60x60?text=MoMo"
-                          alt="MoMo"
-                          className="w-12 h-12 rounded-lg border-2 border-gray-200"
-                        />
-                        <img
-                          src="https://placehold.co/60x60?text=ZaloPay"
-                          alt="ZaloPay"
-                          className="w-12 h-12 rounded-lg border-2 border-gray-200"
-                        />
-                        <img
-                          src="https://placehold.co/60x60?text=VNPay"
-                          alt="VNPay"
-                          className="w-12 h-12 rounded-lg border-2 border-gray-200"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Quét mã QR bằng ứng dụng MoMo, ZaloPay hoặc VNPay
-                      </p>
-                    </div>
-                  )}
-
-                  {paymentMethod === "card" && (
-                    <div className="space-y-6">
-                      <div>
-                        <Label htmlFor="card-number" className="text-gray-700 font-semibold mb-2 block">
-                          Số thẻ *
-                        </Label>
-                        <div className="relative">
-                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                          <Input
-                            id="card-number"
-                            required
-                            value={formatCardNumber(cardData.number)}
-                            onChange={handleCardNumberChange}
-                            placeholder="1234 5678 9012 3456"
-                            className="pl-10 h-12 border-2 text-lg tracking-wider"
-                            maxLength={19}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="card-name" className="text-gray-700 font-semibold mb-2 block">
-                          Tên chủ thẻ *
-                        </Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                          <Input
-                            id="card-name"
-                            required
-                            value={cardData.name}
-                            onChange={(e) =>
-                              setCardData({ ...cardData, name: e.target.value.toUpperCase() })
-                            }
-                            placeholder="NGUYEN VAN A"
-                            className="pl-10 h-12 border-2 uppercase"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="card-expiry" className="text-gray-700 font-semibold mb-2 block">
-                            Ngày hết hạn *
-                          </Label>
-                          <Input
-                            id="card-expiry"
-                            required
-                            value={cardData.expiry}
-                            onChange={handleExpiryChange}
-                            placeholder="MM/YY"
-                            className="h-12 border-2 text-lg"
-                            maxLength={5}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="card-cvv" className="text-gray-700 font-semibold mb-2 block">
-                            CVV *
-                          </Label>
-                          <Input
-                            id="card-cvv"
-                            required
-                            type="password"
-                            value={cardData.cvv}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, "");
-                              if (value.length <= 3) {
-                                setCardData({ ...cardData, cvv: value });
-                              }
-                            }}
-                            placeholder="123"
-                            className="h-12 border-2 text-lg"
-                            maxLength={3}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                        <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                        <p className="text-sm text-blue-900">
-                          Thông tin thẻ được mã hóa SSL 256-bit. Chúng tôi không lưu trữ thông tin thẻ của bạn.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod === "ewallet" && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        {["MoMo", "ZaloPay", "VNPay"].map((wallet) => (
-                          <button
-                            key={wallet}
-                            className="p-6 border-2 border-gray-200 rounded-xl hover:border-primary hover:shadow-lg transition-all"
-                          >
-                            <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                              <Smartphone className="w-8 h-8 text-gray-600" />
-                            </div>
-                            <p className="font-semibold text-sm text-gray-900">
-                              {wallet}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="p-6 bg-orange-50 border-2 border-orange-200 rounded-xl text-center">
-                        <Badge className="bg-orange-500 text-white mb-3">
-                          Ưu đãi đặc biệt
-                        </Badge>
-                        <p className="font-bold text-lg text-orange-900 mb-1">
-                          Giảm 5% khi thanh toán qua ví điện tử
-                        </p>
-                        <p className="text-sm text-orange-700">
-                          Áp dụng cho đơn hàng từ 500.000đ
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Terms and Submit */}
-                <Card className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id="terms"
-                        checked={acceptTerms}
-                        onCheckedChange={(checked: boolean | "indeterminate") => setAcceptTerms(checked === true)}
-                        className="mt-1"
-                      />
-                      <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
-                        Tôi đồng ý với{" "}
-                        <a href="#" className="text-primary hover:underline font-semibold">
-                          điều khoản và điều kiện
-                        </a>{" "}
-                        của Đường Sắt Việt Nam. Tôi xác nhận rằng thông tin đã cung cấp là chính xác.
-                      </label>
-                    </div>
-
-                    <Separator />
-
-                    <Button
-                      onClick={handlePayment}
-                      disabled={!acceptTerms || isProcessing || isExpired}
-                      size="lg"
-                      className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-xl h-14 text-lg font-bold"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Đang xử lý...
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-5 h-5 mr-2" />
-                          Thanh toán {formatPrice(grandTotal)}
-                        </>
-                      )}
-                    </Button>
-
-                    <div className="flex items-center justify-center gap-4 pt-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Shield className="w-4 h-4 text-green-600" />
-                        <span>Bảo mật SSL</span>
-                      </div>
-                      <div className="w-px h-4 bg-gray-300"></div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>PCI DSS</span>
-                      </div>
-                    </div>
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left: Payment method */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* VNPay card */}
+            <Card className="p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Phương thức thanh toán
+              </h2>
+              <div className="flex items-center gap-4 p-4 border-2 border-primary bg-primary/5 rounded-xl">
+                <div className="p-3 rounded-xl bg-primary text-white">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900">VNPay</div>
+                  <div className="text-sm text-gray-500">
+                    Thanh toán qua cổng VNPay – ATM, thẻ tín dụng, QR Code
                   </div>
-                </Card>
+                </div>
+                <CheckCircle className="w-6 h-6 text-primary" />
               </div>
+            </Card>
 
-              {/* Right: Booking Summary */}
-              <div className="lg:col-span-1">
-                <Card className="p-6 sticky top-24">
-                  <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
-                    <Ticket className="w-6 h-6 text-primary" />
-                    Thông tin đặt vé
-                  </h3>
+            {/* Terms & Submit */}
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="terms"
+                    checked={acceptTerms}
+                    onCheckedChange={(v) => setAcceptTerms(v === true)}
+                    className="mt-1"
+                  />
+                  <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
+                    Tôi đồng ý với{" "}
+                    <a href="#" className="text-primary hover:underline font-semibold">
+                      điều khoản và điều kiện
+                    </a>{" "}
+                    của Đường Sắt Việt Nam.
+                  </label>
+                </div>
 
-                  {/* Bookings Info */}
-                  <div className="space-y-4 mb-6">
-                    {bookings.map((booking, idx) => (
-                      <div key={idx} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 bg-primary rounded-lg flex-shrink-0">
-                            <Train className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-900 text-sm">
-                              {idx === 0 ? "Chiều đi:" : "Chiều về:"} {booking.trainCode}
-                            </h4>
-                            <p className="text-xs text-gray-600">
-                              {booking.route.origin} → {booking.route.destination}
-                            </p>
-                          </div>
+                <Separator />
+
+                <Button
+                  onClick={handlePayment}
+                  disabled={!acceptTerms || isProcessing}
+                  size="lg"
+                  className="w-full h-14 text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5 mr-2" />
+                      Thanh toán {formatPrice(grandTotal)}
+                    </>
+                  )}
+                </Button>
+
+                <div className="flex items-center justify-center gap-4 pt-1">
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Shield className="w-4 h-4 text-green-600" />
+                    Bảo mật SSL
+                  </div>
+                  <div className="w-px h-4 bg-gray-200" />
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Mã hóa 256-bit
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right: Booking summary */}
+          <div className="lg:col-span-1">
+            <Card className="p-6 sticky top-24">
+              <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
+                <Ticket className="w-6 h-6 text-primary" />
+                Tóm tắt vé
+              </h3>
+
+              <div className="space-y-4 mb-6">
+                {bookings.map((b, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-100"
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-primary rounded-lg flex-shrink-0">
+                        <Train className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-sm">
+                          {bookings.length > 1 ? (idx === 0 ? "Chiều đi:" : "Chiều về:") : ""}{" "}
+                          {b.trainCode}
                         </div>
-
-                        <Separator className="my-3 bg-blue-300" />
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              Ngày đi
-                            </span>
-                            <span className="font-semibold">
-                              {new Date(booking.date).toLocaleDateString("vi-VN")}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              Giờ
-                            </span>
-                            <span className="font-semibold">{booking.departureTime}</span>
-                          </div>
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-blue-200">
-                            <span className="text-gray-600 text-xs">Ghế: {booking.seats.map((s:any) => s.seat_number || s).join(", ")}</span>
-                            <span className="font-semibold text-primary">{formatPrice(booking.totalPrice)}</span>
-                          </div>
+                        <div className="text-xs text-gray-500">
+                          {b.route?.origin} → {b.route?.destination}
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <Separator className="my-6" />
-
-                  {/* Passengers */}
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 mb-3">Hành khách</h4>
-                    <div className="space-y-2">
-                      {bookings[0].passengers.map((passenger, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                        >
-                          <p className="font-semibold text-sm text-gray-900">
-                            {passenger.name}
-                          </p>
-                          <p className="text-xs text-gray-600">CMND: {passenger.id}</p>
-                        </div>
-                      ))}
                     </div>
-                  </div>
 
-                  <Separator className="my-6" />
+                    <Separator className="my-3 bg-blue-200" />
 
-                  {/* Price Breakdown */}
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">
-                        Tổng cộng ({totalSeats} ghế)
-                      </span>
-                      <span className="font-semibold">
-                        {formatPrice(grandTotal)}
-                      </span>
-                    </div>
-                    {paymentMethod === "ewallet" && grandTotal >= 500000 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-green-600">Giảm giá (5%)</span>
-                        <span className="font-semibold text-green-600">
-                          -{formatPrice(grandTotal * 0.05)}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" /> Ngày đi
+                        </span>
+                        <span className="font-semibold">{formatDate(b.date)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" /> Giờ khởi hành
+                        </span>
+                        <span className="font-semibold">{b.departureTime || "N/A"}</span>
+                      </div>
+                      <div className="flex justify-between items-start mt-2 pt-2 border-t border-blue-200">
+                        <span className="text-gray-500 text-xs">
+                          Ghế:{" "}
+                          {b.seats?.map((s) => s.seat_number || s.seat_id).join(", ")}
+                        </span>
+                        <span className="font-semibold text-primary text-sm">
+                          {formatPrice(b.totalPrice || 0)}
                         </span>
                       </div>
-                    )}
-                  </div>
-
-                  <Separator className="my-6" />
-
-                  {/* Total */}
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="text-lg font-bold text-gray-900">
-                      Tổng thanh toán
-                    </span>
-                    <span className="text-2xl font-bold text-primary">
-                      {paymentMethod === "ewallet" && grandTotal >= 500000
-                        ? formatPrice(grandTotal * 0.95)
-                        : formatPrice(grandTotal)}
-                    </span>
-                  </div>
-
-                  {/* Security Info */}
-                  <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                    <div className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-sm text-green-900 mb-1">
-                          Thanh toán an toàn
-                        </p>
-                        <p className="text-xs text-green-700">
-                          Mọi giao dịch được mã hóa và bảo mật tuyệt đối
-                        </p>
+                      {/* Passengers */}
+                      <div className="pt-1 space-y-1">
+                        {b.seats?.map((s, i) => (
+                          <div key={i} className="text-xs text-gray-600 flex justify-between">
+                            <span>{s.full_name}</span>
+                            <span className="text-gray-400">{s.passenger_type || "Người lớn"}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
-                </Card>
+                ))}
               </div>
-            </div>
+
+              <Separator className="my-4" />
+
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-gray-900">Tổng thanh toán</span>
+                <span className="text-2xl font-bold text-primary">{formatPrice(grandTotal)}</span>
+              </div>
+
+              <div className="p-3 bg-green-50 border border-green-200 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <Shield className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-green-700">
+                    Mọi giao dịch được mã hóa và bảo mật tuyệt đối
+                  </p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </main>
-
-      {/* Success Modal */}
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">
-              <div className="inline-flex items-center justify-center p-4 bg-green-100 rounded-full mb-4">
-                <CheckCircle className="w-12 h-12 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">Thanh toán thành công!</h3>
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              <p className="text-gray-600 mb-6">
-                Vé của bạn đã được xác nhận và gửi về email. Mã đặt vé của bạn là:
-              </p>
-              <div className="p-4 bg-primary/10 rounded-xl border-2 border-primary/20 mb-6">
-                <p className="text-3xl font-bold text-primary tracking-wider">
-                  VR{Math.random().toString(36).substring(2, 10).toUpperCase()}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600">
-                Vui lòng kiểm tra email để nhận vé điện tử và thông tin chi tiết.
-              </p>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 mt-4">
-            <Button
-              onClick={() => setShowSuccessModal(false)}
-              variant="outline"
-              className="flex-1"
-            >
-              Đóng
-            </Button>
-            <Button
-              onClick={() => {
-                setShowSuccessModal(false);
-                if (onPaymentSuccess) onPaymentSuccess();
-              }}
-              className="flex-1 bg-gradient-to-r from-primary to-secondary"
-            >
-              Xem vé
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

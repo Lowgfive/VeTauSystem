@@ -41,18 +41,15 @@ const BookingPassengerSchema = new Schema<IBookingPassenger>(
 );
 
 // Logic Middleware xử lý tính toán tài chính động
-BookingPassengerSchema.pre('save', function(this: IBookingPassenger, next: any) {
-    if (this.pricing && this.pricing.basePrice != null) { // Check for null/undefined
-        // formula: (base * (1 - discount)) - promotion + insurance
+BookingPassengerSchema.pre('save', async function(this: IBookingPassenger) {
+    if (this.pricing && this.pricing.basePrice != null) {
         const calculatedTotal = (this.pricing.basePrice * (1 - this.pricing.discountRate)) 
                               - this.pricing.promotion 
                               + this.pricing.insurance;
         
         this.pricing.totalAmount = Math.max(0, calculatedTotal);
-        this.ticket_price = this.pricing.totalAmount; // Sync
+        this.ticket_price = this.pricing.totalAmount;
     }
-    
-    next();
 });
 
 export const BookingPassenger = mongoose.model<IBookingPassenger>("BookingPassenger", BookingPassengerSchema);

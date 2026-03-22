@@ -2,68 +2,83 @@ import { Request, Response } from "express";
 import { VNPayService } from "../services/vnpay.service";
 import BookingModel from "../models/booking.model";
 import { asyncHandler } from "../utils/asyncHandler";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 export class PaymentController {
-  static createPayment = asyncHandler(async (req: any, res: Response) => {
-    const { booking_id } = req.body;
-    const ipAddr =
-      req.headers["x-forwarded-for"] ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress ||
-      req.connection.socket.remoteAddress;
+  static createPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { booking_ids } = req.body as { booking_ids: string[] };
 
-    if (!booking_id) {
-      return res.status(400).json({ success: false, message: "Thiếu booking_id" });
+    const ipAddr =
+      (req.headers["x-forwarded-for"] as string) ||
+      req.socket.remoteAddress ||
+      "127.0.0.1";
+
+    if (!booking_ids || !Array.isArray(booking_ids) || booking_ids.length === 0) {
+      return res.status(400).json({ success: false, message: "Thiếu booking_ids" });
     }
 
-    const booking = await BookingModel.findById(booking_id);
-    if (!booking) {
+    const bookings = await BookingModel.find({ _id: { $in: booking_ids } });
+    if (bookings.length === 0) {
       return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
     }
 
-    if (booking.status !== "pending") {
-        return res.status(400).json({ success: false, message: "Trạng thái đơn hàng không hợp lệ để thanh toán" });
-    }
+    const totalAmount = bookings.reduce((sum, b) => sum + b.total_amount, 0);
+
+    // Generate a single transaction reference for all bookings
+    const txnRef = "TXN" + Date.now().toString(36).toUpperCase();
+
+    // Store txnRef on all bookings
+    await BookingModel.updateMany(
+      { _id: { $in: booking_ids } },
+      { payment_txn_ref: txnRef }
+    );
 
     const paymentUrl = VNPayService.createPaymentUrl(
       ipAddr,
-      booking.price,
-      booking.booking_code,
-      `Thanh toan ve tau cho ma booking ${booking.booking_code}`
+      totalAmount,
+      txnRef,
+      `Thanh toan ve tau - ${booking_ids.length} ve`
     );
 
     res.status(200).json({
       success: true,
-      data: paymentUrl,
+      data: { paymentUrl, txnRef },
     });
   });
 
   static vnpayReturn = asyncHandler(async (req: Request, res: Response) => {
-    let vnp_Params = req.query;
-    const isValid = VNPayService.validateReturn({ ...vnp_Params });
+    const vnp_Params = { ...req.query };
+    const isValid = VNPayService.validateReturn(vnp_Params);
 
-    if (isValid) {
-      const responseCode = vnp_Params["vnp_ResponseCode"];
-      const bookingCode = vnp_Params["vnp_TxnRef"];
+    if (!isValid) {
+      return res.redirect(
+        `${process.env.CLIENT_URL}/payment-result?status=error&message=Chu+ky+khong+hop+le`
+      );
+    }
 
-      if (responseCode === "00") {
-        // Payment success
-        await BookingModel.findOneAndUpdate({ booking_code: bookingCode }, { status: 'paid' });
+    const responseCode = vnp_Params["vnp_ResponseCode"];
+    const txnRef = vnp_Params["vnp_TxnRef"] as string;
 
-        return res.json({
-          success: true,
-          message: "Thanh toán thành công",
-          bookingCode,
-        });
-      } else {
-        return res.json({
-          success: false,
-          message: "Thanh toán thất bại",
-          code: responseCode,
-        });
-      }
+    if (responseCode === "00") {
+      // Payment success - update all bookings with this txnRef
+      await BookingModel.updateMany(
+        { payment_txn_ref: txnRef },
+        { status: "paid" }
+      );
+
+      return res.redirect(
+        `${process.env.CLIENT_URL}/payment-result?status=success&txnRef=${txnRef}`
+      );
     } else {
-      return res.status(400).json({ success: false, message: "Chữ ký không hợp lệ" });
+      // Payment failed
+      await BookingModel.updateMany(
+        { payment_txn_ref: txnRef },
+        { status: "cancelled" }
+      );
+
+      return res.redirect(
+        `${process.env.CLIENT_URL}/payment-result?status=failed&code=${responseCode}`
+      );
     }
   });
 }
