@@ -20,6 +20,7 @@ import routerTemplate from "./routes/template.route";
 
 
 import routerPayment from "./routes/payment.route";
+import routerDashboard from "./routes/dashboard.route";
 
 
 const app = express();
@@ -90,6 +91,7 @@ app.use("/api/v1/templates", routerTemplate);
 
 
 app.use("/api/v1/payments", routerPayment);
+app.use("/api/v1/dashboard", routerDashboard);
 
 
 // 404 Fallback 

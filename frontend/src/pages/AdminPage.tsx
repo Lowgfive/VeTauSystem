@@ -9,8 +9,10 @@ import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 import { StationManagement } from '../components/admin/StationManagement';
 
+import { AdminDashboard } from '../components/admin/AdminDashboard';
+
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports'>('trains');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports'>('dashboard');
 
     const handleLogout = () => {
         // Implement logout logic
@@ -27,6 +29,7 @@ export default function AdminPage() {
             case 'tickets':
                 return <TicketManagement />;
             case 'dashboard':
+                return <AdminDashboard />;
             case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">

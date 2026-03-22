@@ -1,47 +1,60 @@
 import { Card } from '../ui/card';
 import { TrendingUp, TrendingDown, Users, Ticket, Train, DollarSign } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from 'react';
+import { getDashboardStats } from '../../services/dashboard.service';
+import { Loader2 } from 'lucide-react';
 
 export function AdminDashboard() {
-  // Mock data for charts
-  const revenueData = [
-    { month: 'T1', revenue: 2400000000, tickets: 12400 },
-    { month: 'T2', revenue: 2100000000, tickets: 10800 },
-    { month: 'T3', revenue: 2800000000, tickets: 14200 },
-    { month: 'T4', revenue: 2600000000, tickets: 13100 },
-    { month: 'T5', revenue: 3200000000, tickets: 16500 },
-    { month: 'T6', revenue: 3500000000, tickets: 18200 },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
 
-  const routeData = [
-    { name: 'Hà Nội - Sài Gòn', value: 35, revenue: 12500000000 },
-    { name: 'Hà Nội - Đà Nẵng', value: 25, revenue: 8200000000 },
-    { name: 'Sài Gòn - Nha Trang', value: 20, revenue: 6800000000 },
-    { name: 'Hà Nội - Huế', value: 12, revenue: 4100000000 },
-    { name: 'Khác', value: 8, revenue: 2600000000 },
-  ];
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await getDashboardStats();
+        if (res.success) {
+          setData(res.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
-  const seatTypeData = [
-    { type: 'Ngồi cứng', count: 8500, revenue: 2100000000 },
-    { type: 'Ngồi mềm', count: 6200, revenue: 3400000000 },
-    { type: 'Giường nằm cứng', count: 4800, revenue: 4200000000 },
-    { type: 'Giường nằm mềm', count: 3200, revenue: 5800000000 },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="text-center p-12">
+        <p className="text-red-500">Không thể tải dữ liệu thống kê. Vui lòng thử lại sau.</p>
+      </div>
+    );
+  }
 
   const COLORS = ['#0A2A43', '#1E5B8C', '#3B82F6', '#60A5FA', '#93C5FD'];
 
   const stats = [
     {
       title: 'Doanh thu tháng này',
-      value: '3.5 tỷ VNĐ',
-      change: '+12.5%',
+      value: new Intl.NumberFormat('vi-VN').format(data.stats.revenueThisMonth) + ' ₫',
+      change: '+12.5%', // Trend calculation could be added later
       trend: 'up',
       icon: DollarSign,
       color: 'bg-green-500',
     },
     {
-      title: 'Vé đã bán',
-      value: '18,245',
+      title: 'Vé đã bán (tháng này)',
+      value: data.stats.ticketsThisMonth.toLocaleString(),
       change: '+8.2%',
       trend: 'up',
       icon: Ticket,
@@ -49,15 +62,15 @@ export function AdminDashboard() {
     },
     {
       title: 'Tàu đang hoạt động',
-      value: '47',
-      change: '+2',
+      value: data.stats.activeTrains.toString(),
+      change: '+0',
       trend: 'up',
       icon: Train,
       color: 'bg-purple-500',
     },
     {
       title: 'Hành khách',
-      value: '42,186',
+      value: data.stats.totalPassengers.toLocaleString(),
       change: '+15.3%',
       trend: 'up',
       icon: Users,
@@ -65,13 +78,7 @@ export function AdminDashboard() {
     },
   ];
 
-  const recentBookings = [
-    { id: 'VNR-2024-001234', route: 'Hà Nội → Sài Gòn', passenger: 'Nguyễn Văn A', date: '15/02/2026', status: 'confirmed', amount: 1250000 },
-    { id: 'VNR-2024-001235', route: 'Sài Gòn → Đà Nẵng', passenger: 'Trần Thị B', date: '15/02/2026', status: 'confirmed', amount: 850000 },
-    { id: 'VNR-2024-001236', route: 'Hà Nội → Huế', passenger: 'Lê Văn C', date: '16/02/2026', status: 'pending', amount: 680000 },
-    { id: 'VNR-2024-001237', route: 'Đà Nẵng → Nha Trang', passenger: 'Phạm Thị D', date: '16/02/2026', status: 'confirmed', amount: 560000 },
-    { id: 'VNR-2024-001238', route: 'Hà Nội → Sài Gòn', passenger: 'Hoàng Văn E', date: '17/02/2026', status: 'cancelled', amount: 1250000 },
-  ];
+  const recentBookings = data.recentBookings;
 
   return (
     <div className="space-y-6">
@@ -111,9 +118,9 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Doanh thu 6 tháng gần nhất</h3>
+          <h3 className="text-lg font-semibold mb-4">Doanh thu thống kê</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
+            <LineChart data={data.revenueByMonth}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
@@ -138,7 +145,7 @@ export function AdminDashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={routeData}
+                data={data.revenueByRoute}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -147,7 +154,7 @@ export function AdminDashboard() {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {routeData.map((entry, index) => (
+                {data.revenueByRoute.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -163,7 +170,7 @@ export function AdminDashboard() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Số lượng vé bán ra</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueData}>
+            <BarChart data={data.revenueByMonth}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
@@ -178,7 +185,7 @@ export function AdminDashboard() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Doanh thu theo loại ghế</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={seatTypeData} layout="horizontal">
+            <BarChart data={data.revenueBySeatType} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
               <YAxis dataKey="type" type="category" width={120} />
@@ -207,7 +214,7 @@ export function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentBookings.map((booking) => (
+              {recentBookings.map((booking: any) => (
                 <tr key={booking.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4 text-sm font-medium">{booking.id}</td>
                   <td className="py-3 px-4 text-sm">{booking.route}</td>
