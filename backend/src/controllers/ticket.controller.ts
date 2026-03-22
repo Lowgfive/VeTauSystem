@@ -25,7 +25,7 @@ const prepareTicketData = async (bookingCode: string) => {
             populate: {
                 path: "carriage_id",
                 populate: {
-                    path: "train_id"
+                    path: "train_id",
                 }
             }
         });
@@ -37,7 +37,6 @@ const prepareTicketData = async (bookingCode: string) => {
         bookingCode: b.booking_code,
         customerName: b.user_id?.name || "Khách hàng",
         ticketType: "Vé điện tử",
-        lineName: b.seat_id?.carriage_id?.train_id?.train_name || "Tuyến tàu",
         fromStation: b.schedule_id?.route_id?.departure_station_id?.station_name || "Ga đi",
         toStation: b.schedule_id?.route_id?.arrival_station_id?.station_name || "Ga đến",
         validDate: new Date(b.schedule_id?.date).toLocaleDateString("vi-VN"),

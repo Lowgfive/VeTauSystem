@@ -1,8 +1,13 @@
-import {Schedule} from "../models/schedule.model";
-import {Train} from "../models/train.model";
-import {Route} from "../models/route.model";
-import {Station} from "../models/station.model";
-  function formatTime(date: Date) {
+import { Schedule } from "../models/schedule.model";
+import { Train } from "../models/train.model";
+import { Route } from "../models/route.model";
+import { Station } from "../models/station.model";
+import mongoose from "mongoose";
+import BookingModel from "../models/booking.model";
+import { BookingPassenger } from "../models/bookingpassenger.model";
+import { getSeatsByTrain } from "../services/train.service";
+import * as seatLockService from "../services/seat.service";
+function formatTime(date: Date) {
   const h = date.getHours().toString().padStart(2, "0");
   const m = date.getMinutes().toString().padStart(2, "0");
   return `${h}:${m}`;
@@ -12,117 +17,113 @@ import {Station} from "../models/station.model";
 
 export default class ScheduleService {
 
-  static async generateSchedules(trainId: string, days = 10) {
+  static async generateSchedules(trainId: string, days: number) {
 
     const train = await Train.findById(trainId);
     if (!train) throw new Error("Train not found");
 
-    // Xóa các lịch trình trong tương lai của tàu này trước khi sinh mới để tránh trùng lặp
     const now = new Date();
-    await Schedule.deleteMany({ 
-      train_id: trainId, 
-      date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
-      status: 'SCHEDULED' // Chỉ xóa những cái chưa chạy hoặc chưa bị tác động
+
+    await Schedule.deleteMany({
+      train_id: trainId,
+      date: {
+        $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      },
+      status: "SCHEDULED"
     });
 
     const stations = await Station.find().sort({ station_order: 1 });
     const routes = await Route.find();
 
-    // map route lookup nhanh
+    // map route
     const routeMap = new Map();
     routes.forEach(r => {
       const key =
         r.departure_station_id.toString() +
         "-" +
         r.arrival_station_id.toString();
-
       routeMap.set(key, r);
     });
 
-    let direction = train.direction;
-
-    let stationIndex =
-      direction === "forward" ? 0 : stations.length - 1;
-
-    const startDate = new Date();
-    startDate.setHours(8, 0, 0, 0); // tàu chạy 8h sáng
-
-    let currentTime = new Date(startDate);
-
-    const endDate = new Date(
-      startDate.getTime() + days * 24 * 60 * 60 * 1000
-    );
-
     const schedules: any[] = [];
 
-    while (currentTime < endDate) {
+    for (let day = 0; day < days; day++) {
 
-      const nextIndex =
-        direction === "forward"
-          ? stationIndex + 1
-          : stationIndex - 1;
+      // 🟢 reset mỗi ngày
+      let currentTime = new Date();
+      currentTime.setHours(8, 0, 0, 0);
+      currentTime.setDate(currentTime.getDate() + day);
 
-      // đảo chiều khi tới ga cuối
-      if (nextIndex < 0 || nextIndex >= stations.length) {
+      let stationIndex =
+        train.direction === "forward" ? 0 : stations.length - 1;
 
-        direction = direction === "forward"
-          ? "backward"
-          : "forward";
+      const direction = train.direction;
 
-        continue;
+      while (true) {
+
+        const nextIndex =
+          direction === "forward"
+            ? stationIndex + 1
+            : stationIndex - 1;
+
+        // 🔥 tới ga cuối → dừng (KHÔNG đảo chiều)
+        if (nextIndex < 0 || nextIndex >= stations.length) {
+          break;
+        }
+
+        const currentStation = stations[stationIndex];
+        const nextStation = stations[nextIndex];
+
+        const routeKey =
+          currentStation._id.toString() +
+          "-" +
+          nextStation._id.toString();
+
+        const route = routeMap.get(routeKey);
+
+        if (!route) {
+          console.error(
+            `Thiếu route: ${currentStation.station_name} -> ${nextStation.station_name}`
+          );
+          break;
+        }
+
+        const departureDate = new Date(currentTime);
+
+        const travelMs = route.hour * 60 * 60 * 1000;
+
+        const arrivalDate = new Date(
+          departureDate.getTime() + travelMs
+        );
+
+        schedules.push({
+          train_id: train._id,
+          route_id: route._id,
+
+          // 🔥 QUAN TRỌNG: date = ngày KHỞI HÀNH của segment
+          date: new Date(
+            departureDate.getFullYear(),
+            departureDate.getMonth(),
+            departureDate.getDate()
+          ),
+
+          departure_time: formatTime(departureDate),
+          arrival_time: formatTime(arrivalDate)
+        });
+
+        // dừng 30 phút
+        currentTime = new Date(
+          arrivalDate.getTime() + 30 * 60 * 1000
+        );
+
+        stationIndex = nextIndex;
       }
-
-      const currentStation = stations[stationIndex];
-      const nextStation = stations[nextIndex];
-
-      const routeKey =
-        currentStation._id.toString() +
-        "-" +
-        nextStation._id.toString();
-
-      const route = routeMap.get(routeKey);
-
-      if (!route) {
-        console.error(`Dừng sinh lịch: Thiếu lộ trình giữa [${currentStation.station_name}] và [${nextStation.station_name}]. Vui lòng cấu hình lộ trình này.`);
-        break;
-      }
-
-      const departureDate = new Date(currentTime);
-
-      const travelMs = route.hour * 60 * 60 * 1000;
-
-      const arrivalDate = new Date(
-        departureDate.getTime() + travelMs
-      );
-
-      schedules.push({
-        train_id: train._id,
-        route_id: route._id,
-
-        date: new Date(
-          departureDate.getFullYear(),
-          departureDate.getMonth(),
-          departureDate.getDate()
-        ),
-
-        departure_time: formatTime(departureDate),
-        arrival_time: formatTime(arrivalDate)
-      });
-
-      // tàu dừng 30 phút
-      currentTime = new Date(
-        arrivalDate.getTime() + 30 * 60 * 1000
-      );
-
-      stationIndex = nextIndex;
     }
 
     await Schedule.insertMany(schedules);
 
-    console.log(schedules)
     return schedules.length;
   }
-
   // --- MỚI THÊM VÀO ĐỂ FIX API MAIN BRANCH ---
   static async getAllSchedules(filter: Record<string, any> = {}) {
     const schedules = await Schedule.find(filter)
@@ -148,5 +149,69 @@ export default class ScheduleService {
       throw new Error("Không tìm thấy chuyến tàu (Schedule not found)");
     }
     return updated;
+  }
+
+  static async getSeatsBySchedule(id: string) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("ID lịch trình không hợp lệ");
+    }
+
+    const schedule = await Schedule.findById(id).populate("train_id").lean();
+    if (!schedule) {
+      throw new Error("Không tìm thấy lịch trình");
+    }
+
+    const train: any = (schedule as any).train_id;
+    if (!train?._id) {
+      throw new Error("Lịch trình không gắn với đoàn tàu hợp lệ");
+    }
+
+    // Lấy ghế cơ bản của tàu
+    const baseSeatMap = await getSeatsByTrain(String(train._id));
+    if (!baseSeatMap || !baseSeatMap.seatsByCarriage) {
+      return { scheduleId: id, seats: [] };
+    }
+
+    const allSeats: any[] = Object.values(baseSeatMap.seatsByCarriage || {}).flat();
+
+    // Lấy các ghế đã đặt theo lịch trình
+    const bookings = await BookingModel.find({
+      schedule_id: new mongoose.Types.ObjectId(id),
+      status: { $in: ["pending", "confirmed", "paid", "changed"] },
+    }).select("_id").lean();
+
+    const bookingIds = bookings.map((b) => b._id);
+
+    const bookingPassengers = await BookingPassenger.find({
+      booking_id: { $in: bookingIds },
+      status: { $in: ["reserved", "confirmed", "paid"] }
+    }).select("seat_id seatInfo").populate('seat_id').lean();
+
+    const bookedSeatIds = new Set<string>(bookingPassengers.map((bp: any) => String(bp.seat_id?._id || bp.seat_id)));
+
+    // Fallback cho logic lấy bằng seat_number
+    const bookedSeatNumbers = new Set<string>(
+      bookingPassengers.map((bp: any) => String(bp.seatInfo?.seatNumber || bp.seat_id?.seat_number)).filter(Boolean)
+    );
+
+    // Lấy danh sách ghế đang bị lock
+    const seatNumbers = allSeats.map((s: any) => String(s.seat_number));
+    const lockMap = await seatLockService.checkSeatLocksBulk(id, seatNumbers);
+
+    const seats = allSeats.map((seat: any) => {
+      const seatNumber = String(seat.seat_number);
+      const isBooked = bookedSeatIds.has(String(seat._id)) || bookedSeatNumbers.has(seatNumber);
+      const isLocked = !isBooked && !!lockMap[seatNumber];
+
+      return {
+        seatNumber,
+        seatId: String(seat._id),
+        carriageId: String(seat.carriage_id),
+        seatType: seat.seat_type,
+        status: isBooked ? "booked" : isLocked ? "locked" : "available",
+      };
+    });
+
+    return { scheduleId: id, seats };
   }
 }

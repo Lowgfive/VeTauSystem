@@ -19,10 +19,16 @@ export function SearchForm({ onSearch }: SearchFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (originId && destinationId && date) {
+      const originStation = stations.find((s) => s.id === originId);
+      const destinationStation = stations.find((s) => s.id === destinationId);
       onSearch({
         originId,
         destinationId,
         date,
+        originName: originStation?.name,
+        destinationName: destinationStation?.name,
+        originCode: originStation?.code,
+        destinationCode: destinationStation?.code,
       });
     }
   };

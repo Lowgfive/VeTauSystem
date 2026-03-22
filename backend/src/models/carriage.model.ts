@@ -27,7 +27,6 @@ const carriageSchema = new Schema<ICarriage>(
         // Tổng số ghế ngồi trong toa
         total_seats: { type: Number, required: true },
 
-        // Sức chứa hành khách đứng
         standing_capacity: { type: Number, default: 200 },
 
         // Bố trí ghế dạng lưới: rows x cols

@@ -13,15 +13,13 @@ export interface CartSeat {
 
 interface CartState {
     seats: CartSeat[];
-    timeLeft: number; // seconds remaining (starts at 600 = 10 min)
-    isTimerRunning: boolean;
+    expiresAt: number | null;
 
     addSeat: (seat: CartSeat) => void;
     removeSeat: (seatId: string) => void;
     clearCart: () => void;
-    startTimer: () => void;
-    stopTimer: () => void;
-    tickTimer: () => void;
+    setExpiresAt: (timestamp: number) => void;
+    clearExpiresAt: () => void;
     getTotalPrice: () => number;
 }
 
@@ -29,8 +27,7 @@ export const useCartStore = create<CartState>()(
     persist(
         (set, get) => ({
             seats: [],
-            timeLeft: 600,
-            isTimerRunning: false,
+            expiresAt: null,
 
             addSeat: (seat) => {
                 const exists = get().seats.some((s) => s.seatId === seat.seatId);
@@ -44,27 +41,18 @@ export const useCartStore = create<CartState>()(
                     seats: state.seats.filter((s) => s.seatId !== seatId),
                 })),
 
-            clearCart: () => set({ seats: [], timeLeft: 600, isTimerRunning: false }),
+            clearCart: () => set({ seats: [], expiresAt: null }),
 
-            startTimer: () => set({ isTimerRunning: true, timeLeft: 600 }),
+            setExpiresAt: (timestamp) => set({ expiresAt: timestamp }),
 
-            stopTimer: () => set({ isTimerRunning: false }),
-
-            tickTimer: () => {
-                const { timeLeft, clearCart } = get();
-                if (timeLeft <= 1) {
-                    clearCart(); // auto-clear when timer hits 0
-                } else {
-                    set({ timeLeft: timeLeft - 1 });
-                }
-            },
+            clearExpiresAt: () => set({ expiresAt: null }),
 
             getTotalPrice: () =>
                 get().seats.reduce((sum, seat) => sum + seat.price, 0),
         }),
         {
             name: "vetau-cart", // persisted key in localStorage
-            partialize: (state) => ({ seats: state.seats, timeLeft: state.timeLeft }),
+            partialize: (state) => ({ seats: state.seats, expiresAt: state.expiresAt }),
         }
     )
 );

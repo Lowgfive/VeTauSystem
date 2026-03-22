@@ -30,6 +30,10 @@ async function start() {
     // ─── Connect Redis ────────────────────────────────────────────────────────
     await connectRedis();
 
+    // ─── Start Cron Jobs ──────────────────────────────────────────────────────
+    const { startCronJobs } = require("./utils/cron");
+    startCronJobs();
+
     // ─── Create HTTP Server ───────────────────────────────────────────────────
     const httpServer = http.createServer(app);
 

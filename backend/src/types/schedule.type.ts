@@ -6,5 +6,6 @@ export interface ISchedule {
   date: Date;
   departure_time: string;
   arrival_time: string;
+  availableSeats?: number;
   status?: "SCHEDULED" | "DELAYED" | "CANCELLED" | "MAINTENANCE";
 }

@@ -109,6 +109,8 @@ export function Homepage({
       destinationId,
       originName: originStation?.name || "",
       destinationName: destinationStation?.name || "",
+      originCode: originStation?.code,
+      destinationCode: destinationStation?.code,
       date: departureDate,
       returnDate: isRoundTrip ? returnDate : undefined,
     };

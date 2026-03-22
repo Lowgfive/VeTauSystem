@@ -56,15 +56,16 @@ export const loginService = async (
     data: LoginInput
 ): Promise<LoginResponse> => {
     const { email, password } = data;
-
+    console.log(email, password)
     // 1. Check if user exists
     const user = await UserModel.findOne({ email }).select("+password");
+    console.log("user",user)
     if (!user) {
         const error = new Error("Email hoặc mật khẩu không đúng") as Error & { statusCode: number };
         error.statusCode = 401;
         throw error;
     }
-
+    
     // 2. Compare password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {

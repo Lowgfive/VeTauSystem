@@ -9,17 +9,15 @@ export interface ISeat {
   seat_number: string;
   seat_type?: SeatType; // Loại ghế (hard_seat, soft_seat, etc.)
   status: SeatStatus;
-  position?: SeatPosition; // Vị trí ghế trong toa (row, col)
-  price?: number; // Giá vé - chỉ có khi ghế được gán cho schedule
+  position?: SeatPosition;
+  price?: number;
+  locked_at?: Date;
+  expired_at?: Date;
+  locked_by?: mongoose.Types.ObjectId;
 }
 
 const seatSchema = new Schema<ISeat>(
   {
-    schedule_id: {
-      type: Schema.Types.ObjectId,
-      ref: "Schedule",
-      required: false // Không bắt buộc - ghế có thể tồn tại mà chưa gán schedule
-    },
     carriage_id: {
       type: Schema.Types.ObjectId,
       ref: "Carriage",
@@ -45,8 +43,11 @@ const seatSchema = new Schema<ISeat>(
     },
     price: {
       type: Number,
-      required: false // Không bắt buộc - giá có thể được tính từ schedule
-    }
+      required: false
+    },
+    locked_at: { type: Date },
+    expired_at: { type: Date },
+    locked_by: { type: Schema.Types.ObjectId, ref: "User" }
   },
   { timestamps: true }
 );

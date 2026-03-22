@@ -7,6 +7,7 @@ const HomePage = lazy(() => import("../pages/HomePage"));
 const SearchResultPage = lazy(() => import("../pages/SearchResultPage"));
 const SeatSelectionPage = lazy(() => import("../pages/SeatSelectionPage"));
 const CheckoutPage = lazy(() => import("../pages/CheckoutPage"));
+const PassengerInfoPage = lazy(() => import("../pages/PassengerInfoPage"));
 const PaymentResultPage = lazy(() => import("../pages/PaymentResultPage"));
 const ManageBookingPage = lazy(() => import("../pages/ManageBookingPage"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
@@ -56,7 +57,16 @@ export const AppRouter = () => (
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchResultPage />} />
+            {/* Booking Flow */}
             <Route path="/booking/:scheduleId" element={<SeatSelectionPage />} />
+            <Route
+                path="/booking/passenger-info/:scheduleId"
+                element={
+                    <ProtectedRoute>
+                        <PassengerInfoPage />
+                    </ProtectedRoute>
+                }
+            />
             <Route path="/manage" element={<ManageBookingPage />} />
             <Route path="/payment-result" element={<PaymentResultPage />} />
             <Route path="/support" element={<SupportPage />} />

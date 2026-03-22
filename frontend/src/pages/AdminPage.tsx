@@ -7,6 +7,7 @@ import { TicketManagement } from '../components/admin/TicketManagement';
 import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 
+
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
 
@@ -18,7 +19,6 @@ export default function AdminPage() {
         switch (activeTab) {
             case 'trains':
                 return <TrainManagement />;
-
             case 'schedules':
                 return <ScheduleManagement />;
             case 'tickets':

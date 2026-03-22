@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { createBooking } from "../services/booking.service";
+import { toast } from "sonner";
 import {
   Train,
   ArrowLeft,
@@ -27,11 +29,11 @@ import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import { useCartStore } from "../store/cartStore";
+import { useSeatTimer } from "../hooks/useSeatTimer";
+import { CountdownDisplay } from "./CountdownDisplay";
 
-interface PaymentPageProps {
-  onBack: () => void;
-  onPaymentSuccess?: () => void;
-  bookingData?: {
+interface BookingDataType {
     trainCode: string;
     trainName: string;
     route: {
@@ -42,14 +44,22 @@ interface PaymentPageProps {
     departureTime: string;
     arrivalTime: string;
     duration: string;
-    seats: string[];
+    seats: any[];
     passengers: {
       name: string;
       id: string;
       phone: string;
     }[];
     totalPrice: number;
-  };
+    scheduleId?: string;
+    departureStationId?: string;
+    arrivalStationId?: string;
+}
+
+interface PaymentPageProps {
+  onBack: () => void;
+  onPaymentSuccess?: () => void;
+  bookingData?: BookingDataType | BookingDataType[];
 }
 
 export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPageProps) {
@@ -64,8 +74,11 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
     cvv: "",
   });
 
+  const expiresAt = useCartStore((state) => state.expiresAt);
+  const { isExpired } = useSeatTimer(expiresAt);
+
   // Mock booking data if not provided
-  const booking = bookingData || {
+  const mockBooking: BookingDataType = {
     trainCode: "SE1",
     trainName: "Thống Nhất",
     route: {
@@ -76,13 +89,23 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
     departureTime: "19:00",
     arrivalTime: "04:30",
     duration: "30h 30m",
-    seats: ["A12", "A13"],
+    seats: [
+      { seat_id: "mock1", seat_number: "A12", full_name: "Nguyễn Văn A", id_number: "001234567890", test_price: 950000 },
+      { seat_id: "mock2", seat_number: "A13", full_name: "Trần Thị B", id_number: "001234567891", test_price: 950000 }
+    ],
     passengers: [
       { name: "Nguyễn Văn A", id: "001234567890", phone: "0987654321" },
       { name: "Trần Thị B", id: "001234567891", phone: "0987654322" },
     ],
     totalPrice: 1900000,
   };
+
+  const bookings: BookingDataType[] = bookingData 
+    ? (Array.isArray(bookingData) ? bookingData : [bookingData]) 
+    : [mockBooking];
+
+  const grandTotal = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
+  const totalSeats = bookings.reduce((sum, b) => sum + b.seats.length, 0);
 
   const paymentMethods = [
     {
@@ -139,16 +162,27 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
     setCardData({ ...cardData, expiry: value });
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!acceptTerms) {
-      alert("Vui lòng đồng ý với điều khoản và điều kiện");
+      toast.error("Vui lòng đồng ý với điều khoản và điều kiện");
       return;
     }
 
     setIsProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      if (bookings.some(b => !b.scheduleId)) {
+         toast.error("Dữ liệu thanh toán không hợp lệ (thử quay lại và đặt lại).");
+         setIsProcessing(false);
+         return;
+      }
+      
+      await Promise.all(bookings.map(b => createBooking({
+        scheduleId: b.scheduleId!,
+        totalAmount: b.totalPrice,
+        seats: b.seats
+      })));
+
       setIsProcessing(false);
       setShowSuccessModal(true);
       
@@ -158,7 +192,10 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
           onPaymentSuccess();
         }
       }, 2000);
-    }, 3000);
+    } catch (error: any) {
+      setIsProcessing(false);
+      toast.error(error.response?.data?.message || "Thanh toán thất bại hoặc ghế đã bị mất.");
+    }
   };
 
   return (
@@ -184,6 +221,17 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
 
             {/* Security Badge */}
             <div className="flex items-center gap-3">
+              {expiresAt && (
+                <div className="bg-white rounded-lg shadow">
+                   <CountdownDisplay 
+                     expiresAt={expiresAt} 
+                     onExpire={() => {
+                        alert("Đã hết thời gian giữ chỗ. Vui lòng đặt lại.");
+                        onBack();
+                     }} 
+                   />
+                </div>
+              )}
               <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-lg border border-white/30">
                 <Shield className="w-5 h-5 text-white" />
                 <span className="text-sm font-semibold">Bảo mật SSL</span>
@@ -282,17 +330,17 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       </div>
                       <div className="flex items-center justify-center gap-4 mb-4">
                         <img
-                          src="https://via.placeholder.com/60x60?text=MoMo"
+                          src="https://placehold.co/60x60?text=MoMo"
                           alt="MoMo"
                           className="w-12 h-12 rounded-lg border-2 border-gray-200"
                         />
                         <img
-                          src="https://via.placeholder.com/60x60?text=ZaloPay"
+                          src="https://placehold.co/60x60?text=ZaloPay"
                           alt="ZaloPay"
                           className="w-12 h-12 rounded-lg border-2 border-gray-200"
                         />
                         <img
-                          src="https://via.placeholder.com/60x60?text=VNPay"
+                          src="https://placehold.co/60x60?text=VNPay"
                           alt="VNPay"
                           className="w-12 h-12 rounded-lg border-2 border-gray-200"
                         />
@@ -429,7 +477,7 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       <Checkbox
                         id="terms"
                         checked={acceptTerms}
-                        onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                        onCheckedChange={(checked: boolean | "indeterminate") => setAcceptTerms(checked === true)}
                         className="mt-1"
                       />
                       <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
@@ -445,7 +493,7 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
 
                     <Button
                       onClick={handlePayment}
-                      disabled={!acceptTerms || isProcessing}
+                      disabled={!acceptTerms || isProcessing || isExpired}
                       size="lg"
                       className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-xl h-14 text-lg font-bold"
                     >
@@ -457,7 +505,7 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       ) : (
                         <>
                           <Lock className="w-5 h-5 mr-2" />
-                          Thanh toán {formatPrice(booking.totalPrice)}
+                          Thanh toán {formatPrice(grandTotal)}
                         </>
                       )}
                     </Button>
@@ -485,68 +533,59 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                     Thông tin đặt vé
                   </h3>
 
-                  {/* Train Info */}
-                  <div className="mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-primary rounded-lg">
-                        <Train className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900">
-                          {booking.trainCode} - {booking.trainName}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {booking.route.origin} → {booking.route.destination}
-                        </p>
-                      </div>
-                    </div>
+                  {/* Bookings Info */}
+                  <div className="space-y-4 mb-6">
+                    {bookings.map((booking, idx) => (
+                      <div key={idx} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-primary rounded-lg flex-shrink-0">
+                            <Train className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-900 text-sm">
+                              {idx === 0 ? "Chiều đi:" : "Chiều về:"} {booking.trainCode}
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              {booking.route.origin} → {booking.route.destination}
+                            </p>
+                          </div>
+                        </div>
 
-                    <Separator className="my-3 bg-blue-300" />
+                        <Separator className="my-3 bg-blue-300" />
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600 flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          Ngày đi
-                        </span>
-                        <span className="font-semibold">
-                          {new Date(booking.date).toLocaleDateString("vi-VN")}
-                        </span>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" />
+                              Ngày đi
+                            </span>
+                            <span className="font-semibold">
+                              {new Date(booking.date).toLocaleDateString("vi-VN")}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              Giờ
+                            </span>
+                            <span className="font-semibold">{booking.departureTime}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-blue-200">
+                            <span className="text-gray-600 text-xs">Ghế: {booking.seats.map((s:any) => s.seat_number || s).join(", ")}</span>
+                            <span className="font-semibold text-primary">{formatPrice(booking.totalPrice)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          Giờ khởi hành
-                        </span>
-                        <span className="font-semibold">{booking.departureTime}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Thời gian</span>
-                        <span className="font-semibold">{booking.duration}</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
-                  {/* Seats */}
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 mb-3">Ghế đã chọn</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {booking.seats.map((seat) => (
-                        <Badge
-                          key={seat}
-                          className="bg-primary/10 text-primary border-primary px-3 py-1 text-sm font-bold"
-                        >
-                          {seat}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                  <Separator className="my-6" />
 
                   {/* Passengers */}
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 mb-3">Hành khách</h4>
                     <div className="space-y-2">
-                      {booking.passengers.map((passenger, index) => (
+                      {bookings[0].passengers.map((passenger, index) => (
                         <div
                           key={index}
                           className="p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -566,17 +605,17 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">
-                        Giá vé ({booking.seats.length} ghế)
+                        Tổng cộng ({totalSeats} ghế)
                       </span>
                       <span className="font-semibold">
-                        {formatPrice(booking.totalPrice)}
+                        {formatPrice(grandTotal)}
                       </span>
                     </div>
-                    {paymentMethod === "ewallet" && booking.totalPrice >= 500000 && (
+                    {paymentMethod === "ewallet" && grandTotal >= 500000 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-green-600">Giảm giá (5%)</span>
                         <span className="font-semibold text-green-600">
-                          -{formatPrice(booking.totalPrice * 0.05)}
+                          -{formatPrice(grandTotal * 0.05)}
                         </span>
                       </div>
                     )}
@@ -590,9 +629,9 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       Tổng thanh toán
                     </span>
                     <span className="text-2xl font-bold text-primary">
-                      {paymentMethod === "ewallet" && booking.totalPrice >= 500000
-                        ? formatPrice(booking.totalPrice * 0.95)
-                        : formatPrice(booking.totalPrice)}
+                      {paymentMethod === "ewallet" && grandTotal >= 500000
+                        ? formatPrice(grandTotal * 0.95)
+                        : formatPrice(grandTotal)}
                     </span>
                   </div>
 

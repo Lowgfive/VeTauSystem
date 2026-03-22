@@ -5,14 +5,11 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IBooking extends Document {
     user_id: mongoose.Types.ObjectId;
     schedule_id: mongoose.Types.ObjectId;
-    seat_id: mongoose.Types.ObjectId;
-    status: "pending" | "confirmed" | "refunded" | "changed" | "paid";
-    booking_code: string;
-    price: number;
+    total_amount: number;
+    status: "pending" | "confirmed" | "cancelled" | "refunded" | "changed" | "paid";
     createdAt: Date;
     updatedAt: Date;
 }
-
 
 const BookingSchema = new Schema<IBooking>(
     {
@@ -26,25 +23,15 @@ const BookingSchema = new Schema<IBooking>(
             ref: "Schedule",
             required: true,
         },
-        seat_id: {
-            type: Schema.Types.ObjectId,
-            ref: "Seat",
+        total_amount: {
+            type: Number,
             required: true,
         },
         status: {
             type: String,
-            enum: ["pending", "confirmed", "refunded", "changed", "paid"],
+            enum: ["pending", "confirmed", "cancelled", "refunded", "changed", "paid"],
             default: "pending",
-        },
-        booking_code: {
-            type: String,
-            required: true,
-            unique: true,
-        },
-        price: {
-            type: Number,
-            required: true,
-        },
+        }
     },
     {
         timestamps: true,   // auto createdAt / updatedAt

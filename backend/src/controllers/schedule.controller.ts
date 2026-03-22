@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import ScheduleService from "../services/schedule.service";
 import BookingModel from "../models/booking.model";
+import { BookingPassenger } from "../models/bookingpassenger.model";
 import { Schedule } from "../models/schedule.model";
 import { getSeatsByTrain } from "../services/train.service";
+import * as seatLockService from "../services/seat.service";
 
 
 export const autoGenSchedule = async (req: Request, res: Response) => {
@@ -87,13 +89,21 @@ export const getSeatMapBySchedule = async (req: Request, res: Response) => {
     // Lấy sơ đồ ghế cơ bản của đoàn tàu
     const baseSeatMap = await getSeatsByTrain(String(train._id));
 
-    // Tìm tất cả booking theo schedule để đánh dấu ghế đã đặt
+    // Tìm ID của tất cả booking theo schedule
     const bookings = await BookingModel.find({
       schedule_id: new mongoose.Types.ObjectId(id),
       status: { $in: ["pending", "confirmed", "paid"] },
-    }).lean();
+    }).select("_id").lean();
 
-    const bookedSeatIds = new Set<string>(bookings.map((b) => String(b.seat_id)));
+    const bookingIds = bookings.map((b) => b._id);
+
+    // Tìm tất cả booking_passenger thuộc các booking trên
+    const bookingPassengers = await BookingPassenger.find({
+      booking_id: { $in: bookingIds },
+      status: { $in: ["reserved", "confirmed", "paid"] }
+    }).select("seat_id").lean();
+
+    const bookedSeatIds = new Set<string>(bookingPassengers.map((bp: any) => String(bp.seat_id)));
 
     const { carriages, seatsByCarriage } = baseSeatMap;
 
@@ -118,5 +128,31 @@ export const getSeatMapBySchedule = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Lỗi getSeatMapBySchedule:", error);
     return res.status(500).json({ success: false, message: error.message || "Lỗi server khi lấy sơ đồ ghế theo lịch" });
+  }
+};
+
+// Seat map for booking flow: available / booked / locked
+// GET /api/v1/schedules/:id/seats
+export const getSeatsBySchedule = async (req: Request, res: Response) => {
+  try {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    console.log(`[getSeatsBySchedule] Fetching seats for Schedule ID: ${id}`);
+    const data = await ScheduleService.getSeatsBySchedule(id);
+    console.log(`[getSeatsBySchedule] Successfully mapped ${data.seats.length} seats.`);
+
+    return res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    console.error(`[getSeatsBySchedule] ERROR: ${error.message}`, error);
+    
+    if (error.message === "ID lịch trình không hợp lệ") {
+       return res.status(400).json({ success: false, message: error.message });
+    }
+    if (error.message === "Không tìm thấy lịch trình") {
+       return res.status(404).json({ success: false, message: error.message });
+    }
+
+    return res.status(500).json({ success: false, message: error.message || "Lỗi server khi lấy danh sách ghế" });
   }
 };

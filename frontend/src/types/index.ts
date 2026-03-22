@@ -85,9 +85,9 @@ export interface Passenger {
   fullName: string;
   idNumber: string;
   phone: string;
-  email: string;
-  dateOfBirth: string;
+  dateOfBirth?: string;
   seatId: string;
+  passengerType: 'Người lớn' | 'Trẻ em' | 'Sinh viên' | 'Người cao tuổi';
 }
 
 export interface Booking {
@@ -119,6 +119,13 @@ export interface SearchParams {
   originId: string;
   destinationId: string;
   date: string;
+  /** Tên ga hiển thị — gửi lên API tìm chuyến */
+  originName?: string;
+  destinationName?: string;
+  /** Mã ga (HN, NB…) — fallback khi tên trong DB khác UI */
+  originCode?: string;
+  destinationCode?: string;
+  returnDate?: string;
   seatType?: SeatType;
   passengers?: number;
 }

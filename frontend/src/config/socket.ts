@@ -6,9 +6,11 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
     if (!socket) {
+        // Không ép chỉ websocket: một số môi trường/firewall chặn upgrade → dùng polling trước rồi nâng cấp (mặc định của engine.io)
         socket = io(SOCKET_URL, {
             autoConnect: false,
-            transports: ["websocket"],
+            reconnectionAttempts: 5,
+            reconnectionDelay: 2000,
         });
     }
     return socket;

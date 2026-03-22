@@ -3,110 +3,129 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { AuthRequest } from "../middlewares/auth.middleware";
 import BookingModel from "../models/booking.model";
 import { Seat } from "../models/seat.model";
+import { Passenger } from "../models/passenger.model";
+import { BookingPassenger } from "../models/bookingpassenger.model";
 import mongoose from "mongoose";
+import { Schedule } from "../models/schedule.model";
+import * as seatLockService from "../services/seat.service";
 
-
-const generateBookingCode = (): string => {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `BK-${timestamp}-${random}`;
-};
-
-const DISCOUNT_RATES = {
-    adult: 0,
-    child: 0.30,
-    senior: 0.20,
-    disabled: 0.50,
-};
-const TAX_RATE = 0.10;
-
-export const calculateFareDetails = (basePrice: number, passengerType: "adult" | "child" | "senior" | "disabled" = "adult") => {
-    const discountRate = DISCOUNT_RATES[passengerType] || 0;
-    const discountAmount = basePrice * discountRate;
-    const afterDiscount = basePrice - discountAmount;
-    const taxAmount = afterDiscount * TAX_RATE;
-    const totalFare = afterDiscount + taxAmount;
-
-    return {
-        base_price: basePrice,
-        discount_amount: discountAmount,
-        tax_amount: taxAmount,
-        total_fare: totalFare,
-        passenger_type: passengerType
+export const createBooking = asyncHandler(async (req: AuthRequest, res: Response) => {
+    // B1: User chọn seat (lock seat) - Có seat_id (và các thông tin từ frontend gởi lên)
+    const { scheduleId, totalAmount, seats } = req.body as { 
+        scheduleId: string; 
+        totalAmount: number;
+        seats: { seat_id: string; full_name: string; id_number: string; dob?: Date; gender?: string; ticket_price: number; passenger_type?: string; discount_rate?: number; base_price?: number; insurance?: number }[] 
     };
-};
-
-export const calculateFare = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { seat_id, passenger_type } = req.body;
-
-    if (!seat_id) {
-        return res.status(400).json({ success: false, message: "Thiếu seat_id" });
-    }
-
-    const seat = await Seat.findById(seat_id);
-    if (!seat) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy ghế" });
-    }
-
-    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type || "adult");
-
-    res.status(200).json({
-        success: true,
-        message: "Tính giá vé thành công",
-        data: fareDetails,
-    });
-});
-
-// ─── Book Ticket ──────────────────────────────────────────────────────────────
-// POST /api/v1/bookings/book
-// Requires: Authorization header with Bearer token
-
-export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { schedule_id, seat_id } = req.body;
     const userId = req.user?.userId;
 
-    if (!schedule_id || !seat_id) {
-        return res.status(400).json({ success: false, message: "Thiếu schedule_id hoặc seat_id" });
+    if (!scheduleId || !Array.isArray(seats) || seats.length === 0) {
+        return res.status(400).json({ success: false, message: "scheduleId and seats array are required" });
     }
 
-    // Find the seat and check availability
-    const seat = await Seat.findById(seat_id);
-    if (!seat) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy ghế" });
-    }
-    if (seat.status === "booked") {
-        return res.status(409).json({ success: false, message: "Ghế đã được đặt" });
+    const schedule = await Schedule.findById(scheduleId).populate("train_id");
+    if (!schedule) {
+        return res.status(404).json({ success: false, message: "Schedule not found" });
     }
 
-    if (seat.schedule_id && seat.schedule_id.toString() !== schedule_id) {
-        return res.status(400).json({ success: false, message: "Ghế không thuộc lịch trình này" });
+    const validSeatsData = [];
+    for (const seatReq of seats) {
+        const { seat_id, full_name, id_number, dob, gender, ticket_price, passenger_type, discount_rate, base_price, insurance } = seatReq;
+        
+        const seat = await Seat.findById(seat_id);
+        if (!seat) {
+            return res.status(404).json({ success: false, message: `Seat ID ${seat_id} not found` });
+        }
+        
+        const seat_number = seat.seat_number;
+
+        // 1. Check Lock
+        const hasLock = await seatLockService.checkSeatLock(scheduleId, seat_number);
+        if (!hasLock) {
+            return res.status(409).json({ success: false, message: `Seat ${seat_number} is not locked or lock expired` });
+        }
+
+        // 2. Check if already booked
+        const isBooked = await BookingPassenger.findOne({
+            seat_id: seat._id,
+            status: { $in: ["reserved", "confirmed", "paid"] }
+        }).populate({
+            path: 'booking_id',
+            match: { schedule_id: scheduleId }
+        });
+
+        if (isBooked && isBooked.booking_id) {
+            return res.status(409).json({ success: false, message: `Seat ${seat_number} is already booked` });
+        }
+
+        validSeatsData.push({
+            seat_id: seat._id,
+            seat_number: seat_number,
+            ticket_price: ticket_price,
+            full_name,
+            id_number,
+            dob,
+            gender,
+            passenger_type,
+            discount_rate,
+            base_price,
+            insurance
+        });
     }
 
-    const passenger_type = req.body.passenger_type || "adult";
-    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type);
-
+    // B3: Tạo booking
     const booking = await BookingModel.create({
         user_id: new mongoose.Types.ObjectId(userId),
-        schedule_id: new mongoose.Types.ObjectId(schedule_id),
-        seat_id: seat._id,
-        booking_code: generateBookingCode(),
-        price: fareDetails.total_fare, // Save the total fare including tax and discount
+        schedule_id: new mongoose.Types.ObjectId(scheduleId),
+        total_amount: totalAmount,
+        status: "pending"
     });
 
-    // Mark seat as booked
-    seat.status = "booked";
-    await seat.save();
+    const bookingPassengers = [];
+    for (const vs of validSeatsData) {
+        // B2: Tạo hoặc tìm passenger
+        let passenger = await Passenger.findOne({ id_number: vs.id_number });
+        if (!passenger) {
+            passenger = await Passenger.create({
+                full_name: vs.full_name,
+                id_number: vs.id_number,
+                dob: vs.dob,
+                gender: vs.gender
+            });
+        }
 
-    res.status(201).json({
+        // B4: Tạo booking_passenger with required structured properties
+        const bp = await BookingPassenger.create({
+            booking_id: booking._id,
+            passenger_id: passenger._id,
+            seat_id: vs.seat_id,
+            ticket_price: vs.ticket_price, // Will be overridden by pre('save') if pricing exists
+            status: "reserved",
+            pricing: {
+                basePrice: vs.base_price || vs.ticket_price,
+                discountRate: vs.discount_rate || 0,
+                insurance: vs.insurance || 0,
+                promotion: 0,
+                totalAmount: 0 // Handled by pre('save')
+            }
+        });
+        bookingPassengers.push(bp);
+    }
+
+    // Remove locks after successful booking
+    if (userId) {
+        const seatNumbersArray = validSeatsData.map(vs => vs.seat_number);
+        await seatLockService.unlockBatch(scheduleId, seatNumbersArray, userId);
+    }
+
+    return res.status(201).json({
         success: true,
-        message: "Đặt vé thành công",
-        data: booking,
+        message: "Successfully created booking",
+        data: {
+            booking,
+            bookingPassengers
+        },
     });
 });
-
-// ─── Get My Bookings ──────────────────────────────────────────────────────────
-// GET /api/v1/bookings/my-bookings
-// Requires: Authorization header with Bearer token
 
 export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
@@ -125,19 +144,23 @@ export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response
                 }
             ]
         })
-        .populate("seat_id")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
+
+    // Fetch booking passengers for these bookings
+    const bookingsWithPassengers = await Promise.all(bookings.map(async (bk) => {
+        const passengers = await BookingPassenger.find({ booking_id: bk._id })
+            .populate("passenger_id")
+            .populate("seat_id");
+        return { ...bk, booking_passengers: passengers };
+    }));
 
     res.status(200).json({
         success: true,
         message: "Danh sách vé của bạn",
-        data: bookings,
+        data: bookingsWithPassengers,
     });
 });
-
-// ─── Get All Bookings (Admin) ──────────────────────────────────────────────────
-// GET /api/v1/bookings/all
-// Requires: Authorization header with Bearer token (Admin only)
 
 export const getAllBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bookings = await BookingModel.find()
@@ -158,99 +181,19 @@ export const getAllBookings = asyncHandler(async (req: AuthRequest, res: Respons
                 }
             ]
         })
-        .populate({
-            path: "seat_id",
-            populate: {
-                path: "carriage_id"
-            }
-        })
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
+
+    const bookingsWithPassengers = await Promise.all(bookings.map(async (bk) => {
+        const passengers = await BookingPassenger.find({ booking_id: bk._id })
+            .populate("passenger_id")
+            .populate("seat_id");
+        return { ...bk, booking_passengers: passengers };
+    }));
 
     res.status(200).json({
         success: true,
         message: "Danh sách tất cả vé",
-        data: bookings,
-    });
-});
-
-// ─── Refund Ticket ────────────────────────────────────────────────────────────
-// POST /api/v1/bookings/refund/:bookingId
-// Requires: Authorization header with Bearer token
-
-export const refundTicket = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { bookingId } = req.params;
-    const userId = req.user?.userId;
-
-    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId });
-    if (!booking) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy vé" });
-    }
-    if (booking.status !== "confirmed") {
-        return res.status(400).json({ success: false, message: "Vé không thể hoàn trả (trạng thái không hợp lệ)" });
-    }
-
-    // Free the seat
-    await Seat.findByIdAndUpdate(booking.seat_id, { status: "available" });
-
-    // Update booking status
-    booking.status = "refunded";
-    await booking.save();
-
-    res.status(200).json({
-        success: true,
-        message: "Hoàn vé thành công",
-        data: booking,
-    });
-});
-
-// ─── Change Schedule ──────────────────────────────────────────────────────────
-// POST /api/v1/bookings/change-schedule/:bookingId
-// Requires: Authorization header with Bearer token
-// Body: { new_schedule_id, new_seat_id }
-
-export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { bookingId } = req.params;
-    const { new_schedule_id, new_seat_id } = req.body;
-    const userId = req.user?.userId;
-
-    if (!new_schedule_id || !new_seat_id) {
-        return res.status(400).json({ success: false, message: "Thiếu new_schedule_id hoặc new_seat_id" });
-    }
-
-    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId });
-    if (!booking) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy vé" });
-    }
-    if (booking.status !== "confirmed") {
-        return res.status(400).json({ success: false, message: "Vé không thể đổi lịch (trạng thái không hợp lệ)" });
-    }
-
-    // Check new seat availability
-    const newSeat = await Seat.findById(new_seat_id);
-    if (!newSeat) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy ghế mới" });
-    }
-    if (newSeat.status === "booked") {
-        return res.status(409).json({ success: false, message: "Ghế mới đã được đặt" });
-    }
-
-    // Free old seat
-    await Seat.findByIdAndUpdate(booking.seat_id, { status: "available" });
-
-    // Book new seat
-    newSeat.status = "booked";
-    await newSeat.save();
-
-    // Update booking
-    booking.schedule_id = new mongoose.Types.ObjectId(new_schedule_id);
-    booking.seat_id = new mongoose.Types.ObjectId(new_seat_id);
-    booking.price = newSeat.price ?? 0;
-    booking.status = "changed";
-    await booking.save();
-
-    res.status(200).json({
-        success: true,
-        message: "Đổi lịch thành công",
-        data: booking,
+        data: bookingsWithPassengers,
     });
 });

@@ -1,1 +1,1 @@
-export { SeatMap as default } from "../components/SeatMap";
+export { default } from "./SeatSelection";

@@ -25,6 +25,11 @@ const ScheduleSchema = new Schema<ISchedule>(
       type: String,
       required: true,
     },
+    availableSeats: {
+      type: Number,
+      required: false,
+      min: 0,
+    },
     status: {
       type: String,
       enum: ["SCHEDULED", "DELAYED", "CANCELLED", "MAINTENANCE"],

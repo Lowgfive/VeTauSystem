@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { TrainSearchResults } from "../components/TrainSearchResults";
 import { searchSchedules } from "../services/schedule.service";
@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 export default function SearchResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [schedules, setSchedules] = useState([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const searchParams = location.state?.searchParams;
@@ -22,40 +22,78 @@ export default function SearchResultPage() {
     const performSearch = async () => {
       try {
         setLoading(true);
-        const response = await searchSchedules({
-          departureCode: searchParams.originName,
-          arrivalCode: searchParams.destinationName,
-          date: searchParams.date,
-          returndate: searchParams.returnDate
-        });
+        const response = await searchSchedules(
+          searchParams.originName,
+          searchParams.destinationName,
+          searchParams.date,
+          searchParams.returnDate,
+          searchParams.originCode,
+          searchParams.destinationCode
+        );
 
         if (response.success) {
-          // Transform backend data to frontend Schedule format
-          const mapped = (response.data.departureTrips || []).map((trip: any) => ({
+
+          const departureTrips = (response.data.departureTrips || []).map((trip: any) => ({
             id: trip._id,
             trainId: trip.train_id,
+            type: "departure",
             train: {
-              id: trip.train?._id,
-              code: trip.train?.train_code,
-              name: trip.train?.train_name,
-              type: trip.train?.train_type,
-              carriages: [], // We'll fetch this in seat selection
-              amenities: trip.train?.amenities || ["Điều hòa", "Wifi"]
+              _id: trip.train?._id,
+              train_code: trip.train?.train_code,
+              train_name: trip.train?.train_name,
+              train_type: trip.train?.train_type,
+              total_carriages: trip.train?.total_carriages ?? 0,
+              capacity: trip.train?.capacity ?? trip.availableSeats ?? 0,
+              max_speed: trip.train?.max_speed ?? 0,
+              amenities: trip.train?.amenities || ["wifi", "air-conditioning"],
+              is_active: trip.train?.is_active ?? true,
+              status: trip.train?.status,
+              template_id: trip.train?.template_id,
             },
-            originId: trip.departure_station,
-            origin: { name: trip.departure_station },
-            destinationId: trip.arrival_station,
-            destination: { name: trip.arrival_station },
+            origin: { station_name: trip.departure_station, id: trip.departure_station_id },
+            destination: { station_name: trip.arrival_station, id: trip.arrival_station_id },
             departureTime: trip.departure_time,
             arrivalTime: trip.arrival_time,
-            date: searchParams.date,
+            date: response.data?.departureDate || searchParams.date,
             basePrice: trip.price,
             availableSeats: trip.availableSeats,
             duration: trip.duration,
             status: "on-time"
           }));
-          setSchedules(mapped);
-        } else {
+        
+        
+          const returnTrips = (response.data.returnTrips || []).map((trip: any) => ({
+            id: trip._id,
+            trainId: trip.train_id,
+            type: "return",
+            train: {
+              _id: trip.train?._id,
+              train_code: trip.train?.train_code,
+              train_name: trip.train?.train_name,
+              train_type: trip.train?.train_type,
+              total_carriages: trip.train?.total_carriages ?? 0,
+              capacity: trip.train?.capacity ?? trip.availableSeats ?? 0,
+              max_speed: trip.train?.max_speed ?? 0,
+              amenities: trip.train?.amenities || ["wifi", "air-conditioning"],
+              is_active: trip.train?.is_active ?? true,
+              status: trip.train?.status,
+              template_id: trip.train?.template_id,
+            },
+            origin: { station_name: trip.departure_station, id: trip.departure_station_id },
+            destination: { station_name: trip.arrival_station, id: trip.arrival_station_id },
+            departureTime: trip.departure_time,
+            arrivalTime: trip.arrival_time,
+            date: response.data?.returnDate || searchParams.returnDate,
+            basePrice: trip.price,
+            availableSeats: trip.availableSeats,
+            duration: trip.duration,
+            status: "on-time"
+          }));
+        
+        
+          setSchedules([...departureTrips, ...returnTrips]);
+        }
+        else {
           toast.error(response.message || "Không tìm thấy chuyến tàu");
           setSchedules([]);
         }
@@ -85,10 +123,12 @@ export default function SearchResultPage() {
       searchParams={{
         originName: searchParams?.originName || "",
         destinationName: searchParams?.destinationName || "",
-        date: searchParams?.date || ""
+        date: searchParams?.date || "",
+        returnDate: searchParams?.returnDate || ""
       }}
-      onSelectTrain={(schedule) => {
-        navigate(`/booking/${schedule.train_id}`, { state: { schedule } });
+      onSelectTrain={(schedule, returnSchedule) => {
+        console.log("Navigating to booking with Schedule ID:", schedule.id);
+        navigate(`/booking/${schedule.id}`, { state: { schedule, returnSchedule } });
       }}
       onBack={() => navigate("/")}
     />
