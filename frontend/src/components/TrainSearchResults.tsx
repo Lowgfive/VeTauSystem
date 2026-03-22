@@ -224,7 +224,7 @@ export function TrainSearchResults({
       const oldScheduleId = prevDepartureId.current;
       if (oldScheduleId && outboundSeatsRef.current.length > 0) {
          outboundSeatsRef.current.forEach(seat => {
-            seatService.unlockSeat(oldScheduleId, seat.seatNumber).catch(() => {});
+            seatService.unlockSeat(oldScheduleId, seat.seatId).catch(() => {});
             removeMyLock(oldScheduleId, seat.seatId);
          });
       }
@@ -238,7 +238,7 @@ export function TrainSearchResults({
       const oldScheduleId = prevReturnId.current;
       if (oldScheduleId && returnSeatsRef.current.length > 0) {
          returnSeatsRef.current.forEach(seat => {
-            seatService.unlockSeat(oldScheduleId, seat.seatNumber).catch(() => {});
+            seatService.unlockSeat(oldScheduleId, seat.seatId).catch(() => {});
             removeMyLock(oldScheduleId, seat.seatId);
          });
       }

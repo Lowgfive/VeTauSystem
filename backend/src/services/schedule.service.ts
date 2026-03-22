@@ -195,17 +195,18 @@ export default class ScheduleService {
     );
 
     // Lấy danh sách ghế đang bị lock
-    const seatNumbers = allSeats.map((s: any) => String(s.seat_number));
-    const lockMap = await seatLockService.checkSeatLocksBulk(id, seatNumbers);
+    const seatIds = allSeats.map((s: any) => String(s._id));
+    const lockMap = await seatLockService.checkSeatLocksBulk(id, seatIds);
 
     const seats = allSeats.map((seat: any) => {
       const seatNumber = String(seat.seat_number);
-      const isBooked = bookedSeatIds.has(String(seat._id)) || bookedSeatNumbers.has(seatNumber);
-      const isLocked = !isBooked && !!lockMap[seatNumber];
+      const seatId = String(seat._id);
+      const isBooked = bookedSeatIds.has(seatId) || bookedSeatNumbers.has(seatNumber);
+      const isLocked = !isBooked && !!lockMap[seatId];
 
       return {
         seatNumber,
-        seatId: String(seat._id),
+        seatId,
         carriageId: String(seat.carriage_id),
         seatType: seat.seat_type,
         status: isBooked ? "booked" : isLocked ? "locked" : "available",

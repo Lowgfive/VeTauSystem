@@ -223,7 +223,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
     try {
       setProcessingId(seat.seatId);
       if (isCurrentlySelected) {
-        await seatService.unlockSeat(scheduleId, seat.seatNumber).catch(() => {});
+        await seatService.unlockSeat(scheduleId, seat.seatId).catch(() => {});
         removeMyLock(scheduleId, seat.seatId);
         onSeatDeselect(seat.seatId);
       } else {
@@ -239,7 +239,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
             return;
         }
         
-        const response: any = await seatService.lockSeat(scheduleId, seat.seatNumber, departureStationId, arrivalStationId);
+        const response: any = await seatService.lockSeat(scheduleId, seat.seatId, departureStationId, arrivalStationId);
         // Bỏ qua expiresAt của server vì nếu sai lệch múi giờ, client sẽ bị set isExpired = true và tự động xóa khỏi giỏ vé ngay lập tức
         const seatExpiresAt = Date.now() + 5 * 60 * 1000;
         

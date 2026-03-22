@@ -29,24 +29,24 @@ export const seatService = {
   /**
    * Lock a seat for a specific schedule
    */
-  lockSeat: async (scheduleId: string, seatNumber: string, departureStationId: string, arrivalStationId: string) => {
-    const response = await apiClient.post("/seats/lock", { scheduleId, seatNumber, departureStationId, arrivalStationId });
+  lockSeat: async (scheduleId: string, seatId: string, departureStationId: string, arrivalStationId: string) => {
+    const response = await apiClient.post("/seats/lock", { scheduleId, seatId, departureStationId, arrivalStationId });
     return response.data;
   },
 
   /**
    * Unlock a seat for a specific schedule
    */
-  unlockSeat: async (scheduleId: string, seatNumber: string) => {
-    const response = await apiClient.post("/seats/unlock", { scheduleId, seatNumber });
+  unlockSeat: async (scheduleId: string, seatId: string) => {
+    const response = await apiClient.post("/seats/unlock", { scheduleId, seatId });
     return response.data;
   },
 
   /**
    * Bulk unlock seats for a specific schedule
    */
-  unlockBatch: async (scheduleId: string, seatNumbers: string[]) => {
-    const response = await apiClient.post("/seats/unlock-batch", { scheduleId, seatNumbers });
+  unlockBatch: async (scheduleId: string, seatIds: string[]) => {
+    const response = await apiClient.post("/seats/unlock-batch", { scheduleId, seatIds });
     return response.data;
   },
 };

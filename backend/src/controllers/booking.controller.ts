@@ -67,8 +67,6 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
 
     let calculatedTotalAmount = 0;
 
-    const validSeatsData = [];
-
     for (const seatReq of seats) {
         const { seat_id, full_name, id_number, dob, gender, ticket_price, passenger_type, discount_rate, base_price, insurance } = seatReq;
 
@@ -80,7 +78,7 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
         const seat_number = seat.seat_number;
 
         // Kiểm tra lock
-        const hasLock = await seatLockService.checkSeatLock(scheduleId, seat_number);
+        const hasLock = await seatLockService.checkSeatLock(scheduleId, seat_id);
         if (!hasLock) {
             return res.status(409).json({
                 success: false,
@@ -169,8 +167,8 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
     }
 
     // Xóa lock sau khi đặt thành công
-    const seatNumbers = validSeatsData.map((vs) => vs.seat_number);
-    await seatLockService.unlockBatch(scheduleId, seatNumbers, userId);
+    const seatIds = validSeatsData.map((vs) => String(vs.seat_id));
+    await seatLockService.unlockBatch(scheduleId, seatIds, userId);
 
     return res.status(201).json({
         success: true,

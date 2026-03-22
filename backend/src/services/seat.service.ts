@@ -4,14 +4,14 @@ import { Schedule } from "../models/schedule.model";
 import { Carriage } from "../models/carriage.model";
 import mongoose from "mongoose";
 
-export const lockSeat = async (scheduleId: string, seatNumber: string, userId: string): Promise<{ success: boolean; expiresAt?: number }> => {
+export const lockSeat = async (scheduleId: string, seatId: string, userId: string): Promise<{ success: boolean; expiresAt?: number }> => {
   const schedule = await Schedule.findById(scheduleId).lean();
   if (!schedule) return { success: false };
 
   const carriages = await Carriage.find({ train_id: schedule.train_id }).select("_id").lean();
   const carriageIds = carriages.map((c) => c._id);
 
-  const seat = await Seat.findOne({ carriage_id: { $in: carriageIds }, seat_number: seatNumber });
+  const seat = await Seat.findById(seatId);
   if (!seat) return { success: false };
 
   const now = new Date();
@@ -30,7 +30,7 @@ export const lockSeat = async (scheduleId: string, seatNumber: string, userId: s
   await seat.save();
 
   try {
-    getIO().to(`schedule:${scheduleId}`).emit("seat-locked", { scheduleId, seatNumber });
+    getIO().to(`schedule:${scheduleId}`).emit("seat-locked", { scheduleId, seatNumber: seat.seat_number, seatId: seat._id });
   } catch (error) {
     console.error("Socket emit error:", error);
   }
@@ -38,12 +38,11 @@ export const lockSeat = async (scheduleId: string, seatNumber: string, userId: s
   return { success: true, expiresAt: seat.expired_at.getTime() };
 };
 
-export const unlockSeat = async (scheduleId: string, seatNumber: string, userId: string): Promise<boolean> => {
+export const unlockSeat = async (scheduleId: string, seatId: string, userId: string): Promise<boolean> => {
   const schedule = await Schedule.findById(scheduleId).lean();
   if (!schedule) return false;
 
-  const carriages = await Carriage.find({ train_id: schedule.train_id }).select("_id").lean();
-  const seat = await Seat.findOne({ carriage_id: { $in: carriages.map(c => c._id) }, seat_number: seatNumber });
+  const seat = await Seat.findById(seatId);
   if (!seat) return true;
 
   // Requirement 2: Do NOT unlock seats when user navigates away or refreshes the page
@@ -58,7 +57,7 @@ export const unlockSeat = async (scheduleId: string, seatNumber: string, userId:
   await seat.save();
 
   try {
-    getIO().to(`schedule:${scheduleId}`).emit("seat-unlocked", { scheduleId, seatNumber });
+    getIO().to(`schedule:${scheduleId}`).emit("seat-unlocked", { scheduleId, seatNumber: seat.seat_number, seatId: seat._id });
   } catch (error) {
     console.error("Socket emit error:", error);
   }
@@ -68,27 +67,24 @@ export const unlockSeat = async (scheduleId: string, seatNumber: string, userId:
 
 export const unlockBatch = async (
   scheduleId: string,
-  seatNumbers: string[],
+  seatIds: string[],
   userId: string
 ): Promise<string[]> => {
   const schedule = await Schedule.findById(scheduleId).lean();
-  if (!schedule) return seatNumbers;
-
-  const carriages = await Carriage.find({ train_id: schedule.train_id }).select("_id").lean();
-  const carriageIds = carriages.map((c) => c._id);
+  if (!schedule) return seatIds;
 
   const unauthorizedSeats: string[] = [];
   const seatsToUnlock = [];
 
-  for (const sn of seatNumbers) {
-    const seat = await Seat.findOne({ carriage_id: { $in: carriageIds }, seat_number: sn });
+  for (const sid of seatIds) {
+    const seat = await Seat.findById(sid);
     if (!seat) continue;
     
     // Only unlock if we own it
     if (seat.locked_by && seat.locked_by.toString() === userId) {
       seatsToUnlock.push(seat);
     } else if (seat.locked_by) {
-      unauthorizedSeats.push(sn);
+      unauthorizedSeats.push(seat.seat_number);
     }
   }
 
@@ -99,19 +95,18 @@ export const unlockBatch = async (
     seat.locked_by = undefined;
     await seat.save();
     try {
-      getIO().to(`schedule:${scheduleId}`).emit("seat-unlocked", { scheduleId, seatNumber: seat.seat_number });
+      getIO().to(`schedule:${scheduleId}`).emit("seat-unlocked", { scheduleId, seatNumber: seat.seat_number, seatId: seat._id });
     } catch(e) {}
   }
 
   return unauthorizedSeats;
 };
 
-export const checkSeatLock = async (scheduleId: string, seatNumber: string, userId?: string): Promise<boolean> => {
+export const checkSeatLock = async (scheduleId: string, seatId: string, userId?: string): Promise<boolean> => {
   const schedule = await Schedule.findById(scheduleId).lean();
   if (!schedule) return false;
 
-  const carriages = await Carriage.find({ train_id: schedule.train_id }).select("_id").lean();
-  const seat = await Seat.findOne({ carriage_id: { $in: carriages.map(c => c._id) }, seat_number: seatNumber });
+  const seat = await Seat.findById(seatId);
   if (!seat) return false;
 
   const now = new Date();
@@ -129,29 +124,26 @@ export const checkSeatLock = async (scheduleId: string, seatNumber: string, user
 
 export const checkSeatLocksBulk = async (
   scheduleId: string,
-  seatNumbers: string[]
+  seatIds: string[]
 ): Promise<Record<string, boolean>> => {
   const schedule = await Schedule.findById(scheduleId).lean();
   if (!schedule) return {};
 
-  const carriages = await Carriage.find({ train_id: schedule.train_id }).select("_id").lean();
-  const carriageIds = carriages.map((c) => c._id);
-
-  const seats = await Seat.find({ carriage_id: { $in: carriageIds }, seat_number: { $in: seatNumbers } });
+  const seats = await Seat.find({ _id: { $in: seatIds } });
   
   const now = new Date();
   const result: Record<string, boolean> = {};
   
-  for (const sn of seatNumbers) {
-     const seat = seats.find(s => s.seat_number === sn);
+  for (const sid of seatIds) {
+     const seat = seats.find(s => s._id.toString() === sid.toString());
      if (!seat) {
-        result[sn] = false;
+        result[sid] = false;
         continue;
      }
      if (seat.status === "locked" && seat.expired_at && seat.expired_at > now) {
-        result[sn] = true;
+        result[sid] = true;
      } else {
-        result[sn] = false;
+        result[sid] = false;
      }
   }
 

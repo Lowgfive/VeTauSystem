@@ -11,18 +11,18 @@ import { Station } from "../models/station.model";
 
 /**
  * POST /api/v1/seats/lock
- * Body: { scheduleId, departureStationId, arrivalStationId, seatNumber }
+ * Body: { scheduleId, departureStationId, arrivalStationId, seatId }
  */
 export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { scheduleId, departureStationId, arrivalStationId, seatNumber } = req.body;
+  const { scheduleId, departureStationId, arrivalStationId, seatId } = req.body;
   const userId = req.user?.userId;
 
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
-  if (!scheduleId || !departureStationId || !arrivalStationId || !seatNumber) {
-    return res.status(400).json({ success: false, message: "scheduleId, departureStationId, arrivalStationId, and seatNumber are required" });
+  if (!scheduleId || !departureStationId || !arrivalStationId || !seatId) {
+    return res.status(400).json({ success: false, message: "scheduleId, departureStationId, arrivalStationId, and seatId are required" });
   }
 
   if (!mongoose.Types.ObjectId.isValid(scheduleId) || !mongoose.Types.ObjectId.isValid(departureStationId) || !mongoose.Types.ObjectId.isValid(arrivalStationId)) {
@@ -43,12 +43,7 @@ export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => 
     return res.status(404).json({ success: false, message: "Schedule not found" });
   }
 
-  const carriages = await Carriage.find({ train_id: schedule.train_id, is_active: true })
-    .select("_id")
-    .lean();
-  const carriageIds = carriages.map((c) => c._id);
-
-  const seat = await Seat.findOne({ carriage_id: { $in: carriageIds }, seat_number: seatNumber }).lean();
+  const seat = await Seat.findById(seatId).lean();
   if (!seat) {
     return res.status(404).json({ success: false, message: "Seat not found for this schedule/train" });
   }
@@ -66,7 +61,7 @@ export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => 
     return res.status(409).json({ success: false, message: "Seat is already booked for this segment" });
   }
 
-  const { success: locked, expiresAt } = await seatService.lockSeat(scheduleId, seatNumber, userId);
+  const { success: locked, expiresAt } = await seatService.lockSeat(scheduleId, seatId, userId);
 
   if (!locked) {
     return res.status(409).json({ success: false, message: "Seat is already locked" });
@@ -77,21 +72,21 @@ export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 /**
  * POST /api/v1/seats/unlock
- * Body: { scheduleId, seatNumber }
+ * Body: { scheduleId, seatId }
  */
 export const unlockSeat = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { scheduleId, seatNumber } = req.body;
+  const { scheduleId, seatId } = req.body;
   const userId = req.user?.userId;
 
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
-  if (!scheduleId || !seatNumber) {
-    return res.status(400).json({ success: false, message: "scheduleId and seatNumber are required" });
+  if (!scheduleId || !seatId) {
+    return res.status(400).json({ success: false, message: "scheduleId and seatId are required" });
   }
 
-  const result = await seatService.unlockSeat(scheduleId, seatNumber, userId);
+  const result = await seatService.unlockSeat(scheduleId, seatId, userId);
   if (!result) {
     return res.status(403).json({ success: false, message: "You do not own this lock or seat is not locked" });
   }
@@ -101,21 +96,21 @@ export const unlockSeat = asyncHandler(async (req: AuthRequest, res: Response) =
 
 /**
  * POST /api/v1/seats/unlock-batch
- * Body: { scheduleId, seatNumbers: [] }
+ * Body: { scheduleId, seatIds: [] }
  */
 export const unlockBatch = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { scheduleId, seatNumbers } = req.body;
+  const { scheduleId, seatIds } = req.body;
   const userId = req.user?.userId;
 
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
-  if (!scheduleId || !Array.isArray(seatNumbers)) {
-    return res.status(400).json({ success: false, message: "scheduleId and seatNumbers[] are required" });
+  if (!scheduleId || !Array.isArray(seatIds)) {
+    return res.status(400).json({ success: false, message: "scheduleId and seatIds[] are required" });
   }
 
-  const unauthorized = await seatService.unlockBatch(scheduleId, seatNumbers, userId);
+  const unauthorized = await seatService.unlockBatch(scheduleId, seatIds, userId);
   
   res.status(200).json({ 
     success: true, 
@@ -125,16 +120,16 @@ export const unlockBatch = asyncHandler(async (req: AuthRequest, res: Response) 
 });
 
 /**
- * GET /api/v1/seats/check?scheduleId=...&seatNumber=...
+ * GET /api/v1/seats/check?scheduleId=...&seatId=...
  */
 export const checkSeatStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { scheduleId, seatNumber } = req.query as { scheduleId: string; seatNumber: string };
+  const { scheduleId, seatId } = req.query as { scheduleId: string; seatId: string };
 
-  if (!scheduleId || !seatNumber) {
-    return res.status(400).json({ success: false, message: "scheduleId and seatNumber are required" });
+  if (!scheduleId || !seatId) {
+    return res.status(400).json({ success: false, message: "scheduleId and seatId are required" });
   }
 
-  const isLocked = await seatService.checkSeatLock(scheduleId, seatNumber);
+  const isLocked = await seatService.checkSeatLock(scheduleId, seatId);
   res.status(200).json({ success: true, data: { isLocked } });
 });
 
