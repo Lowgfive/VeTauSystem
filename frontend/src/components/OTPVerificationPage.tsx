@@ -10,6 +10,7 @@ interface OTPVerificationPageProps {
     onVerifyOTP: (otp: string, newPassword?: string) => void;
     onNavigateToLogin: () => void;
     onResendOTP: () => void;
+    mode?: "reset-password" | "register";
 }
 
 export function OTPVerificationPage({
@@ -17,6 +18,7 @@ export function OTPVerificationPage({
     onVerifyOTP,
     onNavigateToLogin,
     onResendOTP,
+    mode = "reset-password",
 }: OTPVerificationPageProps) {
     const [otp, setOtp] = useState(["", "", "", "", "", ""]);
     const [newPassword, setNewPassword] = useState("");
@@ -61,9 +63,12 @@ export function OTPVerificationPage({
             setError("Vui lòng nhập đầy đủ mã xác thực 6 số");
             return;
         }
-        if (!newPassword || newPassword.length < 6) {
-            setError("Mật khẩu mới phải có ít nhất 6 ký tự");
-            return;
+
+        if (mode === "reset-password") {
+            if (!newPassword || newPassword.length < 6) {
+                setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+                return;
+            }
         }
 
         setIsLoading(true);
@@ -101,9 +106,12 @@ export function OTPVerificationPage({
 
                 <Card className="p-8 shadow-2xl border-0 bg-white">
                     <div className="mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Thực hiện đổi mật khẩu</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                            {mode === "register" ? "Xác thực tài khoản" : "Thực hiện đổi mật khẩu"}
+                        </h2>
                         <p className="text-sm text-gray-600">
-                            Vui lòng nhập mã OTP đã được gửi đến <span className="font-semibold text-gray-900">{email}</span> để tạo mật khẩu mới.
+                            Vui lòng nhập mã OTP đã được gửi đến <span className="font-semibold text-gray-900">{email}</span> để
+                            {mode === "register" ? " hoàn tất đăng ký." : " tạo mật khẩu mới."}
                         </p>
                     </div>
 
@@ -127,29 +135,31 @@ export function OTPVerificationPage({
                             </div>
                         </div>
 
-                        {/* New Password Input */}
-                        <div className="space-y-1.5">
-                            <Label htmlFor="newPassword" className="text-sm font-semibold text-gray-900">
-                                Mật khẩu mới
-                            </Label>
-                            <div className="relative group">
-                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
-                                <Input
-                                    id="newPassword"
-                                    type="password"
-                                    placeholder="Nhập mật khẩu mới"
-                                    value={newPassword}
-                                    onChange={(e) => {
-                                        setNewPassword(e.target.value);
-                                        setError(null);
-                                    }}
-                                    className={`pl-11 h-11 text-sm border-2 transition-all ${error && error.includes("Mật khẩu")
+                        {/* New Password Input - Only for reset-password */}
+                        {mode === "reset-password" && (
+                            <div className="space-y-1.5">
+                                <Label htmlFor="newPassword" className="text-sm font-semibold text-gray-900">
+                                    Mật khẩu mới
+                                </Label>
+                                <div className="relative group">
+                                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                    <Input
+                                        id="newPassword"
+                                        type="password"
+                                        placeholder="Nhập mật khẩu mới"
+                                        value={newPassword}
+                                        onChange={(e) => {
+                                            setNewPassword(e.target.value);
+                                            setError(null);
+                                        }}
+                                        className={`pl-11 h-11 text-sm border-2 transition-all ${error && error.includes("Mật khẩu")
                                             ? "border-red-500 focus-visible:ring-red-500"
                                             : "border-gray-200 focus-visible:border-primary focus-visible:ring-primary/20"
-                                        }`}
-                                />
+                                            }`}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {error && (
                             <p className="text-xs text-red-600 flex items-center gap-1 mt-1 -">
@@ -161,7 +171,7 @@ export function OTPVerificationPage({
                         <Button
                             type="submit"
                             size="lg"
-                            disabled={isLoading || otp.join("").length < 6 || !newPassword}
+                            disabled={isLoading || otp.join("").length < 6 || (mode === "reset-password" && !newPassword)}
                             className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover text-white font-semibold h-11 text-sm group shadow-lg hover:shadow-xl transition-all"
                         >
                             {isLoading ? (
@@ -171,7 +181,7 @@ export function OTPVerificationPage({
                                 </div>
                             ) : (
                                 <>
-                                    Xác nhận đặt lại mật khẩu
+                                    {mode === "register" ? "Xác nhận OTP" : "Xác nhận đặt lại mật khẩu"}
                                     <KeyRound className="w-4 h-4 ml-2 group-hover:rotate-12 transition-transform" />
                                 </>
                             )}

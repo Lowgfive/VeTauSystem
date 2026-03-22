@@ -10,6 +10,9 @@ export interface IUser extends Document {
     phone?: string;
     cccd?: string;
     role: UserRole;
+    isVerified: boolean;
+    otp?: string;
+    otpExpiresAt?: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -51,6 +54,18 @@ const UserSchema = new Schema<IUser>(
             type: String,
             enum: Object.values(UserRole),
             default: UserRole.USER,
+        },
+        isVerified: {
+            type: Boolean,
+            default: true,
+        },
+        otp: {
+            type: String,
+            select: false,
+        },
+        otpExpiresAt: {
+            type: Date,
+            select: false,
         },
     },
     {

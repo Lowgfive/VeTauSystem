@@ -2,12 +2,12 @@ import nodemailer from "nodemailer";
 import path from "path";
 
 const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST || "smtp.gmail.com",
-    port: Number(process.env.MAIL_PORT) || 587,
-    secure: process.env.MAIL_SECURE === "true", // true for port 465
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: Number(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === "true", // true for port 465
     auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
     },
 });
 
@@ -25,7 +25,7 @@ export const sendTicketEmail = async ({
     pdfBuffer,
 }: SendTicketEmailOptions): Promise<void> => {
     await transporter.sendMail({
-        from: `"VéTàu System" <${process.env.MAIL_USER}>`,
+        from: `"VéTàu System" <${process.env.EMAIL_USER}>`,
         to,
         subject: `🎫 Vé điện tử của bạn - Mã đặt chỗ: ${bookingCode}`,
         html: `
@@ -81,7 +81,7 @@ export const sendResetPasswordEmail = async ({
 
     try {
         await transporter.sendMail({
-            from: `"VéTàu System" <${process.env.MAIL_USER}>`,
+            from: `"VéTàu System" <${process.env.EMAIL_USER}>`,
             to,
             subject: `🔒 Yêu cầu Đặt lại Mật khẩu - VéTàu System`,
             html: htmlContent,
@@ -124,13 +124,71 @@ export const sendPasswordChangedEmail = async ({
 
     try {
         await transporter.sendMail({
-            from: `"VéTàu System" <${process.env.MAIL_USER}>`,
+            from: `"VéTàu System" <${process.env.EMAIL_USER}>`,
             to,
             subject: `✅ Thông báo: Mật khẩu đã được thay đổi`,
             html: htmlContent,
         });
     } catch (error) {
         console.error("⚠️ [EmailService] Không thể gửi email thông báo đổi mật khẩu. SMTP Error:", (error as Error).message);
+    }
+};
+
+export interface SendRegisterOtpEmailOptions {
+    to: string;
+    otp: string;
+    name: string;
+}
+
+export const sendRegisterOtpEmail = async ({
+    to,
+    otp,
+    name,
+}: SendRegisterOtpEmailOptions): Promise<void> => {
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">ĐƯỜNG SẮT VIỆT NAM</h1>
+            <p style="margin: 8px 0 0; color: #bfdbfe; font-size: 14px;">Hệ thống vé tàu điện tử thông minh</p>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+            <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 20px; text-align: center; font-weight: 600;">Xác Thực Email Đăng Ký</h2>
+            <p style="margin: 0 0 16px; color: #334155; font-size: 16px; line-height: 1.6;">Xin chào <strong>${name}</strong>,</p>
+            <p style="margin: 0 0 24px; color: #334155; font-size: 16px; line-height: 1.6;">Cảm ơn bạn đã lựa chọn dịch vụ của Đường Sắt Việt Nam. Để đảm bảo an toàn, vui lòng sử dụng mã bảo mật dưới đây để hoàn tất việc đăng ký tài khoản của bạn:</p>
+            
+            <div style="background-color: #f1f5f9; border: 2px dashed #93c5fd; border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0;">
+                <span style="display: inline-block; font-family: monospace; font-size: 40px; font-weight: 700; color: #1d4ed8; letter-spacing: 12px; margin-left: 12px;">${otp}</span>
+            </div>
+            
+            <p style="margin: 0 0 24px; color: #64748b; font-size: 14px; text-align: center;">
+                ⏳ Mã xác thực này có hiệu lực trong vòng <strong>5 phút</strong>.
+            </p>
+            
+            <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 6px; margin-bottom: 8px;">
+                <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
+                    <strong>Lưu ý bảo mật:</strong> Tuyệt đối không chia sẻ mã OTP này cho bất kỳ ai. Nhân viên Đường Sắt Việt Nam sẽ không bao giờ yêu cầu bạn cung cấp mã này.
+                </p>
+            </div>
+        </div>
+        
+        <div style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0 0 8px; color: #64748b; font-size: 12px;">Nếu bạn không yêu cầu tạo tài khoản, xin vui lòng bỏ qua email này.</p>
+            <p style="margin: 0; color: #94a3b8; font-size: 12px;">&copy; ${new Date().getFullYear()} VéTàu System. Trân trọng,</p>
+        </div>
+      </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"VéTàu System" <${process.env.EMAIL_USER}>`,
+            to,
+            subject: `Mã xác nhận (OTP) đăng ký tài khoản VéTàu System`,
+            html: htmlContent,
+        });
+    } catch (error) {
+        console.error("⚠️ [EmailService] Không thể gửi email OTP đăng ký. SMTP Error:", (error as Error).message);
+        throw new Error("Không thể gửi mã OTP tới email của bạn. Vui lòng kiểm tra lại địa chỉ email.");
     }
 };
 

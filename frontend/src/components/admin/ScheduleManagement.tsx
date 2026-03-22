@@ -48,9 +48,6 @@ export function ScheduleManagement() {
   // Seat map modal state
   const [showSeatMapModal, setShowSeatMapModal] = useState(false);
   const [selectedScheduleForMap, setSelectedScheduleForMap] = useState<any | null>(null);
-  const [seatMapCarriages, setSeatMapCarriages] = useState<any[]>([]);
-  const [seatMapSeatsByCarriage, setSeatMapSeatsByCarriage] = useState<Record<string, any[]>>({});
-  const [loadingSeatMap, setLoadingSeatMap] = useState(false);
 
   useEffect(() => {
     fetchSchedules();
@@ -60,7 +57,8 @@ export function ScheduleManagement() {
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/schedules`);
+      // Giới hạn 200 lịch gần nhất để tránh load chậm
+      const res = await axios.get(`${API_URL}/schedules`, { params: { limit: 200 } });
       setSchedules(res.data.data || []);
     } catch (error) {
       toast.error('Không thể tải danh sách lịch tàu');
@@ -147,24 +145,9 @@ export function ScheduleManagement() {
     'MAINTENANCE': 'Bảo trì',
   };
 
-  const handleViewSeatMap = async (sched: any) => {
-    try {
-      setSelectedScheduleForMap(sched);
-      setLoadingSeatMap(true);
-      const res = await axios.get(`${API_URL}/schedules/${sched._id}/seatmap`);
-      if (res.data?.success && res.data.data) {
-        setSeatMapCarriages(res.data.data.carriages || []);
-        setSeatMapSeatsByCarriage(res.data.data.seatsByCarriage || {});
-        setShowSeatMapModal(true);
-      } else {
-        toast.error(res.data?.message || 'Không thể tải sơ đồ ghế cho chuyến này');
-      }
-    } catch (error: any) {
-      console.error('Lỗi khi tải sơ đồ ghế:', error);
-      toast.error(error.response?.data?.message || 'Không thể tải sơ đồ ghế cho chuyến này');
-    } finally {
-      setLoadingSeatMap(false);
-    }
+  const handleViewSeatMap = (sched: any) => {
+    setSelectedScheduleForMap(sched);
+    setShowSeatMapModal(true);
   };
 
   return (
@@ -323,7 +306,7 @@ export function ScheduleManagement() {
 
             <div className="space-y-2 mt-2">
               <Label>Trạng thái chuyến đi</Label>
-              <Select value={editForm.status} onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}>
+              <Select value={editForm.status} onValueChange={(val: string) => setEditForm(prev => ({ ...prev, status: val }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Trạng thái" />
                 </SelectTrigger>
@@ -366,18 +349,13 @@ export function ScheduleManagement() {
             </div>
 
             <div className="p-6">
-              {loadingSeatMap ? (
-                <div className="py-16 text-center text-muted-foreground">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-emerald-500" />
-                  Đang tải sơ đồ ghế...
-                </div>
-              ) : (
-                <SeatMap
-                  carriages={seatMapCarriages}
-                  seatsData={seatMapSeatsByCarriage}
-                  readOnly
-                />
-              )}
+              <SeatMap
+                scheduleId={selectedScheduleForMap._id}
+                schedule={selectedScheduleForMap}
+                selectedSeats={[]}
+                onSeatSelect={() => { }}
+                onSeatDeselect={() => { }}
+              />
             </div>
           </Card>
         </div>

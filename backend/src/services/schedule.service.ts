@@ -125,18 +125,21 @@ export default class ScheduleService {
     return schedules.length;
   }
   // --- MỚI THÊM VÀO ĐỂ FIX API MAIN BRANCH ---
-  static async getAllSchedules(filter: Record<string, any> = {}) {
-    const schedules = await Schedule.find(filter)
-      .populate("train_id")
+  static async getAllSchedules(filter: Record<string, any> = {}, limit?: number) {
+    let query = Schedule.find(filter)
+      .select("_id date departure_time arrival_time train_id route_id status")
+      .populate({ path: "train_id", select: "_id train_code train_name" })
       .populate({
         path: "route_id",
+        select: "departure_station_id arrival_station_id",
         populate: [
-          { path: "departure_station_id" },
-          { path: "arrival_station_id" }
+          { path: "departure_station_id", select: "_id station_name" },
+          { path: "arrival_station_id", select: "_id station_name" }
         ]
       })
       .sort({ date: 1, departure_time: 1 });
-    return schedules;
+    if (limit && limit > 0) query = query.limit(limit);
+    return query;
   }
 
   static async updateSchedule(id: string, updateData: Partial<typeof Schedule>) {

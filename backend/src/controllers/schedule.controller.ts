@@ -34,14 +34,15 @@ export const autoGenSchedule = async (req: Request, res: Response) => {
 
 export const getSchedules = async (req: Request, res: Response) => {
   try {
-    const { trainId } = req.query;
+    const { trainId, limit } = req.query;
     const filter: Record<string, any> = {};
 
     if (typeof trainId === "string") {
       filter.train_id = trainId;
     }
 
-    const schedules = await ScheduleService.getAllSchedules(filter);
+    const parsedLimit = typeof limit === "string" ? parseInt(limit, 10) : undefined;
+    const schedules = await ScheduleService.getAllSchedules(filter, parsedLimit);
     return res.status(200).json({ success: true, data: schedules });
   } catch (error: any) {
     console.error("Lỗi getSchedules:", error);
@@ -145,12 +146,12 @@ export const getSeatsBySchedule = async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, data });
   } catch (error: any) {
     console.error(`[getSeatsBySchedule] ERROR: ${error.message}`, error);
-    
+
     if (error.message === "ID lịch trình không hợp lệ") {
-       return res.status(400).json({ success: false, message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
     if (error.message === "Không tìm thấy lịch trình") {
-       return res.status(404).json({ success: false, message: error.message });
+      return res.status(404).json({ success: false, message: error.message });
     }
 
     return res.status(500).json({ success: false, message: error.message || "Lỗi server khi lấy danh sách ghế" });
