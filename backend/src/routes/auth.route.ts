@@ -1,12 +1,18 @@
 import express from "express";
-import { register, login, forgotPassword, resetPassword } from "../controllers/auth.controller";
+import { register, login, forgotPassword, resetPassword, verifyRegisterOtp, resendRegisterOtp } from "../controllers/auth.controller";
 import { validate } from "../middlewares/validate.middleware";
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../schemas/auth.schema";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyRegisterOtpSchema, resendRegisterOtpSchema } from "../schemas/auth.schema";
 
 const router = express.Router();
 
 // POST /api/v1/auth/register
 router.post("/register", validate(registerSchema), register);
+
+// POST /api/v1/auth/verify-register-otp
+router.post("/verify-register-otp", validate(verifyRegisterOtpSchema), verifyRegisterOtp);
+
+// POST /api/v1/auth/resend-register-otp
+router.post("/resend-register-otp", validate(resendRegisterOtpSchema), resendRegisterOtp);
 
 // POST /api/v1/auth/login
 router.post("/login", validate(loginSchema), login);

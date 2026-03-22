@@ -4,9 +4,9 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
-import { Search, Plus, Edit, Trash2, Train as TrainIcon, Calendar, MapPin, Clock, X, Eye } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Train as TrainIcon, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { Train, Carriage, Seat } from '../../types';
+import { Train } from '../../types';
 import { SeatMap } from '../SeatMap';
 import { apiClient } from '../../config/api';
 
@@ -19,11 +19,8 @@ export function TrainManagement() {
 
   const [showSeatMapModal, setShowSeatMapModal] = useState(false);
   const [selectedTrainForMap, setSelectedTrainForMap] = useState<Train | null>(null);
-  const [carriagesForMap, setCarriagesForMap] = useState<Carriage[]>([]);
-  const [seatsForMap, setSeatsForMap] = useState<Record<string, Seat[]>>({});
   const [schedulesForMap, setSchedulesForMap] = useState<any[]>([]);
   const [selectedScheduleIdForMap, setSelectedScheduleIdForMap] = useState<string>('');
-  const [loadingSeatMap, setLoadingSeatMap] = useState(false);
 
   const [trains, setTrains] = useState<Train[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,50 +109,12 @@ export function TrainManagement() {
     }
   };
 
-  const loadSeatMapBySchedule = async (scheduleId: string) => {
-    if (!selectedTrainForMap) return;
-    try {
-      setLoadingSeatMap(true);
-      const res = await apiClient.get(`/schedules/${scheduleId}/seatmap`);
-      if (res.data.success && res.data.data) {
-        const carriages = res.data.data.carriages || [];
-        const seatsByCarriage = res.data.data.seatsByCarriage || {};
-
-        if (carriages.length === 0) {
-          toast.warning('Tàu này chưa có toa xe', {
-            description: 'Bạn có muốn tạo toa và ghế tự động không?',
-            action: {
-              label: 'Tạo ngay',
-              onClick: () => handleGenerateCarriages(selectedTrainForMap)
-            },
-            cancel: {
-              label: 'Hủy',
-              onClick: () => { }
-            },
-            duration: 10000
-          });
-          return;
-        }
-
-        setCarriagesForMap(carriages);
-        setSeatsForMap(seatsByCarriage);
-      } else {
-        toast.error('Dữ liệu sơ đồ ghế không hợp lệ');
-      }
-    } catch (e: any) {
-      console.error('Error loading seat map:', e);
-      toast.error(e?.response?.data?.message || 'Không thể tải sơ đồ ghế. Vui lòng thử lại.');
-    } finally {
-      setLoadingSeatMap(false);
-    }
-  };
-
   const handleViewMap = async (train: Train) => {
     setSelectedTrainForMap(train);
     try {
-      // Lấy danh sách lịch theo tàu
+      // Lấy danh sách lịch theo tàu (giới hạn 60 chuyến gần nhất để tránh load chậm)
       const resSchedules = await apiClient.get(`/schedules`, {
-        params: { trainId: train._id },
+        params: { trainId: train._id, limit: 60 },
       });
       const list = resSchedules.data?.data || [];
       setSchedulesForMap(list);
@@ -165,13 +124,11 @@ export function TrainManagement() {
         return;
       }
 
-      const defaultScheduleId = list[0]._id;
-      setSelectedScheduleIdForMap(defaultScheduleId);
-      await loadSeatMapBySchedule(defaultScheduleId);
+      setSelectedScheduleIdForMap(list[0]._id);
       setShowSeatMapModal(true);
     } catch (e: any) {
-      console.error('Error loading schedules or seat map:', e);
-      toast.error(e?.response?.data?.message || 'Không thể tải lịch và sơ đồ ghế. Vui lòng thử lại.');
+      console.error('Error loading schedules:', e);
+      toast.error(e?.response?.data?.message || 'Không thể tải lịch chạy. Vui lòng thử lại.');
     }
   };
 
@@ -513,10 +470,8 @@ export function TrainManagement() {
                     <select
                       className="px-3 py-2 border rounded-lg text-sm min-w-[260px]"
                       value={selectedScheduleIdForMap}
-                      onChange={async (e) => {
-                        const id = e.target.value;
-                        setSelectedScheduleIdForMap(id);
-                        await loadSeatMapBySchedule(id);
+                      onChange={(e) => {
+                        setSelectedScheduleIdForMap(e.target.value);
                       }}
                     >
                       {schedulesForMap.map((s: any) => (
@@ -529,17 +484,13 @@ export function TrainManagement() {
                 )}
               </div>
 
-              {loadingSeatMap ? (
-                <div className="py-16 text-center text-muted-foreground">
-                  Đang tải sơ đồ ghế...
-                </div>
-              ) : (
-                <SeatMap
-                  carriages={carriagesForMap}
-                  seatsData={seatsForMap}
-                  readOnly={true}
-                />
-              )}
+              <SeatMap
+                scheduleId={selectedScheduleIdForMap}
+                schedule={schedulesForMap.find((s: any) => s._id === selectedScheduleIdForMap)}
+                selectedSeats={[]}
+                onSeatSelect={() => { }}
+                onSeatDeselect={() => { }}
+              />
             </div>
           </Card>
         </div>

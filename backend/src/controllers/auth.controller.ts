@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
-import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput } from "../schemas/auth.schema";
-import { registerService, loginService, forgotPasswordService, resetPasswordService } from "../services/auth.service";
+import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput, VerifyRegisterOtpInput, ResendRegisterOtpInput } from "../schemas/auth.schema";
+import { registerService, loginService, forgotPasswordService, resetPasswordService, verifyRegisterOtpService, resendRegisterOtpService } from "../services/auth.service";
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
@@ -14,8 +14,36 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
     res.status(201).json({
         success: true,
-        message: "Đăng ký thành công",
+        message: result.message,
+    });
+});
+
+// ─── Verify Register OTP ──────────────────────────────────────────────────────
+// POST /api/v1/auth/verify-register-otp
+
+export const verifyRegisterOtp = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body as VerifyRegisterOtpInput;
+
+    const result = await verifyRegisterOtpService(body);
+
+    res.status(200).json({
+        success: true,
+        message: "Xác thực tài khoản thành công",
         data: result,
+    });
+});
+
+// ─── Resend Register OTP ──────────────────────────────────────────────────────
+// POST /api/v1/auth/resend-register-otp
+
+export const resendRegisterOtp = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body as ResendRegisterOtpInput;
+
+    const result = await resendRegisterOtpService(body);
+
+    res.status(200).json({
+        success: true,
+        message: result.message,
     });
 });
 

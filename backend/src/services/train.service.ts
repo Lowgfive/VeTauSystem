@@ -241,13 +241,16 @@ export const getSeatsByTrain = async (trainId: string) => {
                 "seat_number": 1 // Fallback sort nếu position không có
             });
 
-        // Nhóm ghế theo từng toa để frontend dễ render SeatMap
+        // Nhóm ghế theo từng toa (O(N) thay vì O(N×M))
         const seatsByCarriage: Record<string, typeof seats> = {};
+        const seatMap = new Map<string, typeof seats>();
+        for (const s of seats) {
+            const cid = s.carriage_id?.toString() ?? "";
+            if (!seatMap.has(cid)) seatMap.set(cid, []);
+            seatMap.get(cid)!.push(s);
+        }
         carriages.forEach((c) => {
-            const carriageIdStr = c._id.toString();
-            seatsByCarriage[carriageIdStr] = seats.filter(
-                (s) => s.carriage_id && s.carriage_id.toString() === carriageIdStr
-            );
+            seatsByCarriage[c._id.toString()] = seatMap.get(c._id.toString()) ?? [];
         });
 
         return { carriages, seatsByCarriage };

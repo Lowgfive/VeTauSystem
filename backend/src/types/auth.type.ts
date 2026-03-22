@@ -27,7 +27,7 @@ export interface LoginResponse {
 }
 
 export interface RegisterResponse {
-    user: UserResponse;
+    message: string;
 }
 
 // ─── Enum ─────────────────────────────────────────────────────────────────────

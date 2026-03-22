@@ -121,25 +121,14 @@ export function RegisterPage({
     if (validateForm()) {
       setIsLoading(true);
       try {
-        await authService.register({
-          name: formData.fullName, // Backend expects 'name'
+        await onRegister({
+          fullName: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
         });
-
-        // Show success using sonner Toaster
-        toast.success("Đăng ký thành công!", {
-          description: "Vui lòng đăng nhập để tiếp tục.",
-        });
-
-        // Trigger the callback to return to Login page
-        setTimeout(() => {
-          onNavigateToLogin();
-        }, 1500);
       } catch (error: any) {
-        toast.error("Đăng ký thất bại", {
-          description: error.message || "Vui lòng kiểm tra lại thông tin.",
-        });
+        // Lỗi sẽ được handle bởi Wrapper
       } finally {
         setIsLoading(false);
       }
