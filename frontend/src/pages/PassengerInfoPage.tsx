@@ -131,6 +131,7 @@ export default function PassengerInfoPage() {
 
     // Now format data for Payment page
 
+
     const buildBookingData = (sch: any, sts: any[], tripTotalPrice: number) => {
       // Normalize departure time - backend uses different field names
       const rawDepartureTime = sch?.departureTime || sch?.departure_time || sch?.depart_time || "N/A";
