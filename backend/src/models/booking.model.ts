@@ -1,12 +1,12 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-// ─── IBooking Interface ────────────────────────────────────────────────────────
-
 export interface IBooking extends Document {
     user_id: mongoose.Types.ObjectId;
     schedule_id: mongoose.Types.ObjectId;
+    booking_code?: string;
     total_amount: number;
     status: "pending" | "confirmed" | "cancelled" | "refunded" | "changed" | "paid";
+    payment_txn_ref?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -23,6 +23,11 @@ const BookingSchema = new Schema<IBooking>(
             ref: "Schedule",
             required: true,
         },
+        booking_code: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
         total_amount: {
             type: Number,
             required: true,
@@ -31,11 +36,15 @@ const BookingSchema = new Schema<IBooking>(
             type: String,
             enum: ["pending", "confirmed", "cancelled", "refunded", "changed", "paid"],
             default: "pending",
-        }
+        },
+        payment_txn_ref: {
+            type: String,
+            index: true,
+        },
     },
     {
-        timestamps: true,   // auto createdAt / updatedAt
-        versionKey: false,  // remove __v field
+        timestamps: true,
+        versionKey: false,
     }
 );
 

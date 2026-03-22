@@ -130,41 +130,58 @@ export default function PassengerInfoPage() {
     }
 
     // Now format data for Payment page
-    const buildBookingData = (sch: any, sts: any[], tripTotalPrice: number) => ({
-      trainCode: sch?.train?.train_code || "Tàu",
-      trainName: sch?.train?.train_name || "Chuyến tàu",
-      route: {
-        origin: sch?.origin?.station_name || "Ga đi",
-        destination: sch?.destination?.station_name || "Ga đến",
-      },
-      date: sch?.departureTime || new Date().toISOString(),
-      departureTime: sch?.departureTime ? new Date(sch.departureTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "00:00",
-      arrivalTime: sch?.arrivalTime ? new Date(sch.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "00:00",
-      duration: sch?.duration || "N/A",
-      seats: sts.map((s: any, index: number) => {
-        const p = passengers[index];
-        return {
-          seat_id: s.seatId,
-          full_name: p?.fullName || '',
-          id_number: p?.idNumber || '',
-          dob: p?.dateOfBirth,
-          gender: "Unknown",
-          passenger_type: p?.passengerType,
-          ticket_price: calculateFare(p, sch?.basePrice || sch?.price || 0, sts[index]?.seatType)
-        };
-      }),
-      passengers: passengers.map(p => ({
-        name: p.fullName,
-        id: p.idNumber,
-        phone: p.phone,
-        dob: p.dateOfBirth,
-        type: p.passengerType
-      })),
-      totalPrice: tripTotalPrice,
-      scheduleId: sch?.id || sch?._id,
-      departureStationId: sch?.origin?.id,
-      arrivalStationId: sch?.destination?.id
-    });
+
+    const buildBookingData = (sch: any, sts: any[], tripTotalPrice: number) => {
+      // Normalize departure time - backend uses different field names
+      const rawDepartureTime = sch?.departureTime || sch?.departure_time || sch?.depart_time || "N/A";
+      const rawArrivalTime   = sch?.arrivalTime   || sch?.arrival_time   || sch?.arrive_time || "N/A";
+      
+      const rawDate = sch?.date || sch?.departureDate || null;
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const isValidDate = (d: Date | null) => d instanceof Date && !isNaN(d.getTime());
+
+      return {
+        trainCode: sch?.train?.train_code || sch?.trainCode || "Tàu",
+        trainName: sch?.train?.train_name || sch?.trainName || "Chuyến tàu",
+        route: {
+          origin:      sch?.origin?.station_name      || sch?.departureStation || "Ga đi",
+          destination: sch?.destination?.station_name || sch?.arrivalStation   || "Ga đến",
+        },
+        date:          isValidDate(parsedDate) ? parsedDate!.toISOString() : "",
+        departureTime: rawDepartureTime,
+        arrivalTime:   rawArrivalTime,
+        duration: sch?.duration || "N/A",
+        seats: sts.map((s: any, index: number) => {
+          const p = passengers[index];
+          return {
+            seat_id:       s.seatId,
+            seat_number:   s.seatNumber || s.seat_number || s.seatId,
+            full_name:     p?.fullName    || "",
+            id_number:     p?.idNumber    || "",
+            dob:           p?.dateOfBirth,
+            gender:        "Unknown",
+            passenger_type: p?.passengerType || "Người lớn",
+            ticket_price:  calculateFare(p, sch?.basePrice || sch?.price || 0),
+            base_price:    sch?.basePrice || sch?.price || 0,
+            insurance:     insuranceFee,
+            discount_rate: getDiscountRate(p?.passengerType),
+          };
+        }),
+        passengers: passengers.map((p) => ({
+          name:  p.fullName,
+          id:    p.idNumber,
+          phone: p.phone,
+          dob:   p.dateOfBirth,
+          type:  p.passengerType,
+        })),
+        totalPrice:          tripTotalPrice,
+        scheduleId:          sch?.id || sch?._id,
+        departureStationId:  sch?.origin?.id,
+        arrivalStationId:    sch?.destination?.id,
+      };
+    };
+
+
 
     const bookingDataOutbound = buildBookingData(outboundSchedule, outboundSeats, totalPriceOutbound);
     const bookingDataReturn = isRoundTrip ? buildBookingData(returnSchedule, returnSeats, totalPriceReturn) : null;
