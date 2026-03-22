@@ -16,10 +16,17 @@ const stationSchema = new Schema<IStation>(
       unique: true,
       required: true,
     },
+    station_type: {
+      type: String,
+      enum: ["underground", "elevated", "ground"],
+      default: "ground",
+    },
     location: {
       type: String,
       required: true
     },
+    lat: { type: Number },
+    lng: { type: Number },
     station_order: {
       type: Number,
       required: true,
@@ -29,7 +36,7 @@ const stationSchema = new Schema<IStation>(
   { timestamps: true }
 );
 
-// Index theo tuyến + thứ tự ga
-stationSchema.index({ station_order: 1 }, { unique: true });
+// Index theo thứ tự ga (không unique vì ga có thể dùng chung thứ tự trên các tuyến khác nhau)
+stationSchema.index({ station_order: 1 });
 
 export const Station = mongoose.model<IStation>("Station", stationSchema);

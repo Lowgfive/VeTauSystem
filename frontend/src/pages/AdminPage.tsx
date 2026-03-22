@@ -7,8 +7,10 @@ import { TicketManagement } from '../components/admin/TicketManagement';
 import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 
+import { StationManagement } from '../components/admin/StationManagement';
+
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports'>('trains');
 
     const handleLogout = () => {
         // Implement logout logic
@@ -18,7 +20,8 @@ export default function AdminPage() {
         switch (activeTab) {
             case 'trains':
                 return <TrainManagement />;
-
+            case 'stations':
+                return <StationManagement />;
             case 'schedules':
                 return <ScheduleManagement />;
             case 'tickets':

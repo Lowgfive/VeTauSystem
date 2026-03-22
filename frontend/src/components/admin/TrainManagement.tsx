@@ -76,10 +76,12 @@ export function TrainManagement() {
     fetchData();
   }, []);
 
-  const filteredTrains = trains.filter(train =>
-    train.train_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    train.train_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTrains = trains.filter(train => {
+    const searchLower = searchTerm.toLowerCase();
+    const codeMatch = train.train_code?.toLowerCase().includes(searchLower) || false;
+    const nameMatch = train.train_name?.toLowerCase().includes(searchLower) || false;
+    return codeMatch || nameMatch;
+  });
 
 
   const getStatusBadge = (status: boolean | string) => {

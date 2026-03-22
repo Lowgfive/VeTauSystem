@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../utils/jwt";
+import { UserRole } from "../types/auth.type";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -33,6 +34,17 @@ export const authMiddleware = (
     console.error("[AUTH]", err);
     return res.status(401).json({ message: "Invalid or expired token" });
   }
+};
+
+export const adminMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (req.user?.role !== UserRole.ADMIN) {
+    return res.status(403).json({ success: false, message: "Yêu cầu quyền quản trị viên" });
+  }
+  next();
 };
 
 
