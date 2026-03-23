@@ -1,13 +1,37 @@
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useCartStore } from "../store/cartStore";
+import { toast } from "sonner";
 
 export default function PaymentResultPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { clearCart } = useCartStore();
 
     const status = searchParams.get("status"); // success | failed | error
     const txnRef = searchParams.get("txnRef") || "";
 
     const isSuccess = status === "success";
+
+    useEffect(() => {
+        if (isSuccess) {
+            clearCart();
+            toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
+            // Đưa về home
+            navigate("/");
+        }
+    }, [isSuccess, clearCart, navigate, txnRef]);
+
+    if (isSuccess) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+                <div className="text-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-gray-500">Đang tải và chuyển hướng về trang chủ...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">

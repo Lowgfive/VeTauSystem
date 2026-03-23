@@ -16,7 +16,7 @@ import { Station } from "../models/station.model";
 export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { scheduleId, departureStationId, arrivalStationId, seatId } = req.body;
   const userId = req.user?.userId;
-
+  console.log("seatId", seatId)
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
@@ -77,7 +77,7 @@ export const lockSeat = asyncHandler(async (req: AuthRequest, res: Response) => 
 export const unlockSeat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { scheduleId, seatId } = req.body;
   const userId = req.user?.userId;
-
+  
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }

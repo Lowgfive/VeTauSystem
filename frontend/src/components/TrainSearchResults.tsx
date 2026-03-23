@@ -191,23 +191,23 @@ export function TrainSearchResults({
   // Bỏ chọn & ghế nếu sessionStorage / state còn id chuyến cũ (sau reseed DB hoặc tìm lại) — tránh GET /schedules/:id/seats → 404
   useEffect(() => {
     if (schedules.length === 0) return;
-    const validIds = new Set(schedules.map((s) => String(s.id)));
+    const validIds = new Set(schedules.map((s: any) => String(s.id || s._id)));
 
-    setSelectedDeparture((prev) =>
-      prev && validIds.has(String(prev.id)) ? prev : null
+    setSelectedDeparture((prev: any) =>
+      prev && validIds.has(String(prev.id || prev._id)) ? prev : null
     );
-    setSelectedReturn((prev) =>
-      prev && validIds.has(String(prev.id)) ? prev : null
+    setSelectedReturn((prev: any) =>
+      prev && validIds.has(String(prev.id || prev._id)) ? prev : null
     );
   }, [schedules]);
 
   useEffect(() => {
     if (schedules.length === 0) return;
-    const validIds = new Set(schedules.map((s) => String(s.id)));
-    if (!selectedDeparture || !validIds.has(String(selectedDeparture.id))) {
+    const validIds = new Set(schedules.map((s: any) => String(s.id || s._id)));
+    if (!selectedDeparture || !validIds.has(String((selectedDeparture as any).id || (selectedDeparture as any)._id))) {
       setOutboundSeats([]);
     }
-    if (!selectedReturn || !validIds.has(String(selectedReturn.id))) {
+    if (!selectedReturn || !validIds.has(String((selectedReturn as any).id || (selectedReturn as any)._id))) {
       setReturnSeats([]);
     }
   }, [schedules, selectedDeparture?.id, selectedReturn?.id]);
