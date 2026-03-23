@@ -4,11 +4,16 @@ import { seatService, SeatInfo } from "../services/seat.service";
 import { SeatItem } from "../components/SeatItem";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "../components/ui/card";
+import { 
+  LucideArmchair, Info, Loader2 
+} from "lucide-react";
 import { CountdownDisplay } from "../components/CountdownDisplay";
 import { useCartStore } from "../store/cartStore";
 import { toast } from "sonner";
-import { LucideArmchair, Info } from "lucide-react";
 import { getSocket, connectSocket, joinScheduleRoom, leaveScheduleRoom } from '../config/socket';
+import { useAppSelector } from "../hooks/useRedux";
+import { changeBookingSchedule } from "../services/booking.service";
+import { Booking } from "../types";
 
 const SeatSelection: React.FC = () => {
   const { scheduleId } = useParams<{ scheduleId: string }>();
@@ -26,6 +31,7 @@ const SeatSelection: React.FC = () => {
   const setExpiresAt = useCartStore((state) => state.setExpiresAt);
   const expiresAt = useCartStore((state) => state.expiresAt);
   const clearExpiresAt = useCartStore((state) => state.clearExpiresAt);
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   // 1. Root Cause Fix: Use useRef to track selectedSeats without triggering re-effects
   const selectedSeatsRef = useRef<SeatInfo[]>([]);
@@ -131,6 +137,11 @@ const SeatSelection: React.FC = () => {
         // Manual lock via user click
       try {
         setProcessingId(seat.seatId);
+        if (!isAuthenticated) {
+          toast.info("Vui lòng đăng nhập để chọn ghế");
+          navigate("/login", { state: { from: location.pathname + location.search } });
+          return;
+        }
         if (!departureStationId || !arrivalStationId) {
             toast.error("Thiếu thông tin ga đi hoặc ga đến. Vui lòng tìm kiếm lại.");
             return;
@@ -145,18 +156,52 @@ const SeatSelection: React.FC = () => {
         setSelectedSeats((prev) => [...prev, seat]);
         toast.success(`Đã chọn ghế ${seat.seatNumber}`);
       } catch (error: any) {
-        toast.error("Ghế này đã có người chọn hoặc đang bị khóa.");
+        if (error.response?.status === 401) {
+          toast.error("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.");
+          navigate("/login", { state: { from: location.pathname + location.search } });
+        } else {
+          toast.error("Ghế này đã có người chọn hoặc đang bị khóa.");
+        }
       } finally {
         setProcessingId(null);
       }
     }
-  }, [scheduleId, selectedSeats]);
+  }, [scheduleId, selectedSeats, isAuthenticated, navigate, location.pathname, location.search, departureStationId, arrivalStationId, setExpiresAt]);
 
-  const handleContinue = () => {
+  const changeBookingId = localStorage.getItem("change_booking_id");
+  const changeBookingCode = localStorage.getItem("change_booking_code");
+
+  const handleContinue = async () => {
     if (selectedSeats.length === 0) {
       toast.warning("Vui lòng chọn ít nhất một ghế");
       return;
     }
+
+    if (changeBookingId) {
+      // HANDLE CHANGE BOOKING
+      try {
+        setLoading(true);
+        const newSeatIds = selectedSeats.map(s => s.seatId);
+        await changeBookingSchedule(changeBookingId, {
+           new_schedule_id: scheduleId!,
+           new_seat_ids: newSeatIds
+        });
+        
+        // Clean up
+        localStorage.removeItem("change_booking_id");
+        localStorage.removeItem("change_booking_code");
+        
+        toast.success(`Đã đổi vé ${changeBookingCode} thành công!`);
+        navigate("/manage"); // Go back to bookings
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || "Lỗi khi đổi vé");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // NORMAL FLOW
     navigate(`/booking/passenger-info/${scheduleId}`, { state: { selectedSeats, schedule, scheduleId } });
   };
 
@@ -170,6 +215,30 @@ const SeatSelection: React.FC = () => {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {changeBookingId && (
+        <div className="mb-6 p-4 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-between animate-in slide-in-from-top duration-500">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                 <LucideArmchair className="w-6 h-6" />
+              </div>
+              <div>
+                 <h2 className="text-lg font-bold">Đang đổi lịch cho vé {changeBookingCode}</h2>
+                 <p className="text-blue-100 text-sm">Vui lòng chọn chỗ mới cho chuyến đi này.</p>
+              </div>
+           </div>
+           <Button 
+            variant="ghost" 
+            className="text-white hover:bg-white/10"
+            onClick={() => {
+              localStorage.removeItem("change_booking_id");
+              localStorage.removeItem("change_booking_code");
+              window.location.reload();
+            }}
+           >
+              Hủy đổi vé
+           </Button>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Main Seat Map */}
         <div className="flex-1">
@@ -281,11 +350,12 @@ const SeatSelection: React.FC = () => {
             <CardFooter className="bg-muted/30 pt-6">
               <Button
                 onClick={handleContinue}
-                className="w-full"
+                className={`w-full ${changeBookingId ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
                 size="lg"
-                disabled={selectedSeats.length === 0}
+                disabled={selectedSeats.length === 0 || loading}
               >
-                Tiếp tục đặt vé
+                {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+                {changeBookingId ? "Xác nhận đổi vé" : "Tiếp tục đặt vé"}
               </Button>
             </CardFooter>
           </Card>

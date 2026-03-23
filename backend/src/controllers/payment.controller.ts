@@ -67,7 +67,7 @@ export class PaymentController {
       );
 
       return res.redirect(
-        `${process.env.CLIENT_URL}/payment-result?status=success&txnRef=${txnRef}`
+        `${process.env.CLIENT_URL}/`
       );
     } else {
       // Payment failed
