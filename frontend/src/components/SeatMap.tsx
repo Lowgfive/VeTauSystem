@@ -206,7 +206,8 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
           }
 
           if (res.data.seats.length > 0) {
-            setActiveCarriage(prev => prev || res.data.seats[0].carriageId);
+            const firstCarriageId = res.data.carriages?.[0]?._id || res.data.seats[0].carriageId;
+            setActiveCarriage(firstCarriageId);
             setCarriagesMetadata(res.data.carriages || []);
           }
         } else {

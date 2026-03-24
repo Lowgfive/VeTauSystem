@@ -17,6 +17,7 @@ export interface SeatMapResponse {
     depOrder?: number;
     arrOrder?: number;
     seats: SeatInfo[];
+    carriages?: any[];
   };
 }
 
