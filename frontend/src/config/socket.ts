@@ -25,11 +25,11 @@ export const disconnectSocket = (): void => {
     if (socket?.connected) socket.disconnect();
 };
 
-// Join a schedule room to receive realtime seat updates
-export const joinScheduleRoom = (scheduleId: string): void => {
-    getSocket().emit("join-schedule", scheduleId);
+// Join a train room to receive realtime seat updates across overlapping segments
+export const joinTrainRoom = (trainId: string): void => {
+    getSocket().emit("join-train", trainId);
 };
 
-export const leaveScheduleRoom = (scheduleId: string): void => {
-    getSocket().emit("leave-schedule", scheduleId);
+export const leaveTrainRoom = (trainId: string): void => {
+    getSocket().emit("leave-train", trainId);
 };

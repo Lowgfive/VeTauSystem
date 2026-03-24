@@ -2,7 +2,7 @@ import { Seat } from "../models/seat.model";
 
 export const startCronJobs = () => {
     console.log("⏰ Starting background cron jobs...");
-    // Run every minute (60000ms)
+    // Run every 30 seconds for faster cleanup of legacy DB locks.
     setInterval(async () => {
         try {
             const now = new Date();
@@ -22,5 +22,5 @@ export const startCronJobs = () => {
         } catch (error) {
             console.error("[Cron] Error releasing expired seats:", error);
         }
-    }, 60 * 1000);
+    }, 30 * 1000);
 };

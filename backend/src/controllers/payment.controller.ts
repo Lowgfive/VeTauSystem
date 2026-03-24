@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { VNPayService } from "../services/vnpay.service";
 import BookingModel from "../models/booking.model";
+import { BookingPassenger } from "../models/bookingpassenger.model";
+import * as seatService from "../services/seat.service";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
@@ -60,14 +62,68 @@ export class PaymentController {
     const txnRef = vnp_Params["vnp_TxnRef"] as string;
 
     if (responseCode === "00") {
+      const paidBookings = await BookingModel.find({ payment_txn_ref: txnRef })
+        .populate({ path: "schedule_id", select: "train_id" })
+        .populate({ path: "departure_station_id", select: "station_order" })
+        .populate({ path: "arrival_station_id", select: "station_order" })
+        .lean();
+
       // Payment success - update all bookings with this txnRef
       await BookingModel.updateMany(
         { payment_txn_ref: txnRef },
         { status: "paid" }
       );
 
+      const bookingIds = paidBookings.map((booking: any) => booking._id);
+      if (bookingIds.length > 0) {
+        await BookingPassenger.updateMany(
+          { booking_id: { $in: bookingIds } },
+          { status: "paid" }
+        );
+
+        const bookingPassengers = await BookingPassenger.find({
+          booking_id: { $in: bookingIds },
+        })
+          .populate({ path: "seat_id", select: "seat_number" })
+          .lean();
+
+        const bookingMap = new Map(
+          paidBookings.map((booking: any) => [String(booking._id), booking])
+        );
+
+        for (const bookingPassenger of bookingPassengers as any[]) {
+          const booking = bookingMap.get(String(bookingPassenger.booking_id));
+          const trainId = booking?.schedule_id?.train_id?.toString();
+          const scheduleId = booking?.schedule_id?._id?.toString?.() || booking?.schedule_id?.toString?.();
+          const depOrder = booking?.departure_station_id?.station_order;
+          const arrOrder = booking?.arrival_station_id?.station_order;
+          const seatId = bookingPassenger.seat_id?._id?.toString?.() || bookingPassenger.seat_id?.toString?.();
+          const seatNumber = bookingPassenger.seat_id?.seat_number;
+
+          if (
+            !trainId ||
+            !scheduleId ||
+            !seatId ||
+            !seatNumber ||
+            depOrder == null ||
+            arrOrder == null
+          ) {
+            continue;
+          }
+
+          seatService.emitSeatBooked(
+            trainId,
+            scheduleId,
+            seatId,
+            seatNumber,
+            depOrder,
+            arrOrder
+          );
+        }
+      }
+
       return res.redirect(
-        `${process.env.CLIENT_URL}/`
+        `http://localhost:3000/`
       );
     } else {
       // Payment failed

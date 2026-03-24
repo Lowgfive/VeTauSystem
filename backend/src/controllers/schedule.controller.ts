@@ -138,9 +138,21 @@ export const getSeatsBySchedule = async (req: Request, res: Response) => {
   try {
     const rawId = req.params.id;
     const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const departureStationId =
+      typeof req.query.departureStationId === "string"
+        ? req.query.departureStationId
+        : undefined;
+    const arrivalStationId =
+      typeof req.query.arrivalStationId === "string"
+        ? req.query.arrivalStationId
+        : undefined;
 
     console.log(`[getSeatsBySchedule] Fetching seats for Schedule ID: ${id}`);
-    const data = await ScheduleService.getSeatsBySchedule(id);
+    const data = await ScheduleService.getSeatsBySchedule(
+      id,
+      departureStationId,
+      arrivalStationId
+    );
     console.log(`[getSeatsBySchedule] Successfully mapped ${data.seats.length} seats.`);
 
     return res.status(200).json({ success: true, data });

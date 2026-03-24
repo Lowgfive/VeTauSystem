@@ -17,7 +17,7 @@ export async function searchSchedules(
   departureStationCode?: string,
   arrivalStationCode?: string
 ) {
-  const res = await apiClient.post("/schedules", {
+  const res = await apiClient.post("/search", {
     departureCode,
     arrivalCode,
     date,

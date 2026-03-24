@@ -17,17 +17,23 @@ export default function PaymentResultPage() {
         if (isSuccess) {
             clearCart();
             toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
-            // Đưa về home
-            navigate("/");
+            // Đưa về home sau một chút để user kịp thấy popup thành công
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1500);
         }
-    }, [isSuccess, clearCart, navigate, txnRef]);
+    }, [isSuccess, clearCart, txnRef]);
 
     if (isSuccess) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-                <div className="text-center">
-                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-500">Đang tải và chuyển hướng về trang chủ...</p>
+                <div className="text-center max-w-md p-8 bg-white rounded-2xl shadow-xl">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h1 className="text-2xl font-bold text-green-600 mb-2">
+                        Thanh toán thành công!
+                    </h1>
+                    <p className="text-gray-500 mb-6">Đang chuyển hướng về trang chủ...</p>
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
             </div>
         );

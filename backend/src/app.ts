@@ -81,6 +81,7 @@ app.use("/api/v1/users", routerUser);
 app.use("/api/v1/auth", routerAuth);
 app.use("/api/v1/routes", routerRoute);
 app.use("/api/v1/stations", routerStation);
+app.use("/api/v1/search", routerSearch);
 app.use("/api/v1/schedules", routerSchedule);
 app.use("/api/v1/trains", routerTrain);
 app.use("/api/v1/tickets", routerTicket);

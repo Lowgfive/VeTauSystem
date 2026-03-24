@@ -154,7 +154,11 @@ export default class ScheduleService {
     return updated;
   }
 
-  static async getSeatsBySchedule(id: string) {
+  static async getSeatsBySchedule(
+    id: string,
+    departureStationId?: string,
+    arrivalStationId?: string
+  ) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       throw new Error("ID lịch trình không hợp lệ");
     }
@@ -170,9 +174,12 @@ export default class ScheduleService {
     }
 
     // Lấy ghế cơ bản của tàu
-    const baseSeatMap = await getSeatsByTrain(String(train._id));
+    const trainId = String(train._id);
+    let depOrder: number | undefined;
+    let arrOrder: number | undefined;
+    const baseSeatMap = await getSeatsByTrain(trainId);
     if (!baseSeatMap || !baseSeatMap.seatsByCarriage) {
-      return { scheduleId: id, seats: [] };
+      return { scheduleId: id, trainId, depOrder, arrOrder, seats: [] };
     }
 
     const allSeats: any[] = Object.values(baseSeatMap.seatsByCarriage || {}).flat();
@@ -188,18 +195,86 @@ export default class ScheduleService {
     const bookingPassengers = await BookingPassenger.find({
       booking_id: { $in: bookingIds },
       status: { $in: ["reserved", "confirmed", "paid"] }
-    }).select("seat_id seatInfo").populate('seat_id').lean();
+    })
+      .select("seat_id seatInfo booking_id")
+      .populate("seat_id")
+      .populate({
+        path: "booking_id",
+        populate: [
+          { path: "departure_station_id", select: "station_order" },
+          { path: "arrival_station_id", select: "station_order" },
+        ],
+      })
+      .lean();
 
-    const bookedSeatIds = new Set<string>(bookingPassengers.map((bp: any) => String(bp.seat_id?._id || bp.seat_id)));
+    if (departureStationId && arrivalStationId) {
+      const [depStation, arrStation] = await Promise.all([
+        Station.findById(departureStationId).select("station_order").lean(),
+        Station.findById(arrivalStationId).select("station_order").lean(),
+      ]);
+
+      depOrder = depStation?.station_order;
+      arrOrder = arrStation?.station_order;
+    }
+
+    const overlapsRequestedJourney = (booking: any) => {
+      if (depOrder == null || arrOrder == null) {
+        return true;
+      }
+
+      const bookingDepartureStation = booking?.departure_station_id as any;
+      const bookingArrivalStation = booking?.arrival_station_id as any;
+      const bookingDepOrder = bookingDepartureStation?.station_order;
+      const bookingArrOrder = bookingArrivalStation?.station_order;
+
+      if (bookingDepOrder == null || bookingArrOrder == null) {
+        console.warn("[getSeatsBySchedule] Missing booking station_order for overlap check", {
+          bookingId: booking?._id?.toString?.(),
+          departureStationId: booking?.departure_station_id?._id?.toString?.() || booking?.departure_station_id?.toString?.(),
+          arrivalStationId: booking?.arrival_station_id?._id?.toString?.() || booking?.arrival_station_id?.toString?.(),
+        });
+        return true;
+      }
+
+      const normalizedRequestStart = Math.min(depOrder, arrOrder);
+      const normalizedRequestEnd = Math.max(depOrder, arrOrder);
+      const normalizedBookingStart = Math.min(bookingDepOrder, bookingArrOrder);
+      const normalizedBookingEnd = Math.max(bookingDepOrder, bookingArrOrder);
+
+      return (
+        Math.max(normalizedRequestStart, normalizedBookingStart) <
+        Math.min(normalizedRequestEnd, normalizedBookingEnd)
+      );
+    };
+
+    const relevantBookingPassengers = [];
+    for (const bookingPassenger of bookingPassengers as any[]) {
+      const booking = bookingPassenger.booking_id;
+      if (!booking) continue;
+      if (overlapsRequestedJourney({ ...booking, seat_id: bookingPassenger.seat_id })) {
+        relevantBookingPassengers.push(bookingPassenger);
+      }
+    }
+
+    const bookedSeatIds = new Set<string>(
+      relevantBookingPassengers.map((bp: any) => String(bp.seat_id?._id || bp.seat_id))
+    );
 
     // Fallback cho logic lấy bằng seat_number
     const bookedSeatNumbers = new Set<string>(
-      bookingPassengers.map((bp: any) => String(bp.seatInfo?.seatNumber || bp.seat_id?.seat_number)).filter(Boolean)
+      relevantBookingPassengers
+        .map((bp: any) => String(bp.seatInfo?.seatNumber || bp.seat_id?.seat_number))
+        .filter(Boolean)
     );
 
     // Lấy danh sách ghế đang bị lock
     const seatIds = allSeats.map((s: any) => String(s._id));
-    const lockMap = await seatLockService.checkSeatLocksBulk(id, seatIds);
+    const lockMap = await seatLockService.checkSeatLocksBulk(
+      trainId,
+      seatIds,
+      depOrder,
+      arrOrder
+    );
 
     const seats = allSeats.map((seat: any) => {
       const seatNumber = String(seat.seat_number);
@@ -216,6 +291,6 @@ export default class ScheduleService {
       };
     });
 
-    return { scheduleId: id, seats };
+    return { scheduleId: id, trainId, depOrder, arrOrder, seats };
   }
 }

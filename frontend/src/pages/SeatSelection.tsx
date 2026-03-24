@@ -10,10 +10,38 @@ import {
 import { CountdownDisplay } from "../components/CountdownDisplay";
 import { useCartStore } from "../store/cartStore";
 import { toast } from "sonner";
-import { getSocket, connectSocket, joinScheduleRoom, leaveScheduleRoom } from '../config/socket';
+import { getSocket, connectSocket, joinTrainRoom, leaveTrainRoom } from '../config/socket';
 import { useAppSelector } from "../hooks/useRedux";
 import { changeBookingSchedule } from "../services/booking.service";
 import { Booking } from "../types";
+
+type SeatSocketEvent = {
+  trainId: string;
+  seatId: string;
+  seatNumber: string;
+  depOrder?: number;
+  arrOrder?: number;
+};
+
+const normalizeRange = (start: number, end: number) => ({
+  start: Math.min(start, end),
+  end: Math.max(start, end),
+});
+
+const rangesOverlap = (
+  startA?: number,
+  endA?: number,
+  startB?: number,
+  endB?: number
+) => {
+  if (startA == null || endA == null || startB == null || endB == null) {
+    return true;
+  }
+
+  const rangeA = normalizeRange(startA, endA);
+  const rangeB = normalizeRange(startB, endB);
+  return Math.max(rangeA.start, rangeB.start) < Math.min(rangeA.end, rangeB.end);
+};
 
 const SeatSelection: React.FC = () => {
   const { scheduleId } = useParams<{ scheduleId: string }>();
@@ -22,11 +50,17 @@ const SeatSelection: React.FC = () => {
   const schedule = location.state?.schedule;
   const departureStationId = schedule?.origin?.id;
   const arrivalStationId = schedule?.destination?.id;
+  const scheduleTrainId = schedule?.trainId || schedule?.train?._id;
 
   const [seats, setSeats] = useState<SeatInfo[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<SeatInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [trainId, setTrainId] = useState<string>(scheduleTrainId || '');
+  const [journeyRange, setJourneyRange] = useState<{ depOrder?: number; arrOrder?: number }>({
+    depOrder: schedule?.origin?.station_order,
+    arrOrder: schedule?.destination?.station_order,
+  });
 
   const setExpiresAt = useCartStore((state) => state.setExpiresAt);
   const expiresAt = useCartStore((state) => state.expiresAt);
@@ -48,8 +82,17 @@ const SeatSelection: React.FC = () => {
     const fetchSeats = async () => {
       try {
         setLoading(true);
-        const response = await seatService.getSeatsBySchedule(scheduleId);
+        const response = await seatService.getSeatsBySchedule(
+          scheduleId,
+          departureStationId,
+          arrivalStationId
+        );
         if (response.success) {
+          setTrainId(response.data.trainId || scheduleTrainId || "");
+          setJourneyRange({
+            depOrder: response.data.depOrder ?? schedule?.origin?.station_order,
+            arrOrder: response.data.arrOrder ?? schedule?.destination?.station_order,
+          });
           setSeats(response.data.seats);
         }
       } catch (error: any) {
@@ -60,45 +103,77 @@ const SeatSelection: React.FC = () => {
     };
 
     fetchSeats();
-  }, [scheduleId]);
+  }, [scheduleId, departureStationId, arrivalStationId, scheduleTrainId]);
 
   // Handle Real-time Socket Updates
   useEffect(() => {
-    if (!scheduleId) return;
+    if (!trainId) return;
 
     connectSocket();
-    joinScheduleRoom(scheduleId);
+    joinTrainRoom(trainId);
     const socket = getSocket();
 
-    const handleSeatUnlocked = (data: { scheduleId: string, seatNumber: string }) => {
-      if (data.scheduleId === scheduleId) {
-        setSeats(prev => prev.map(seat => 
-          seat.seatNumber === data.seatNumber 
-            ? { ...seat, status: "available" } 
-            : seat
-        ));
+    const shouldApplySeatEvent = (data: SeatSocketEvent) =>
+      data.trainId === trainId &&
+      rangesOverlap(
+        journeyRange.depOrder,
+        journeyRange.arrOrder,
+        data.depOrder,
+        data.arrOrder
+      );
+
+    const handleSeatUnlocked = async (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      try {
+        const response = await seatService.getSeatsBySchedule(
+          scheduleId!,
+          departureStationId,
+          arrivalStationId
+        );
+        if (response.success) {
+          setJourneyRange({
+            depOrder: response.data.depOrder ?? journeyRange.depOrder,
+            arrOrder: response.data.arrOrder ?? journeyRange.arrOrder,
+          });
+          setSeats(response.data.seats);
+        }
+      } catch (error) {
+        console.error("Failed to refresh seats after unlock event:", error);
       }
     };
 
-    const handleSeatLocked = (data: { scheduleId: string, seatNumber: string }) => {
-      if (data.scheduleId === scheduleId) {
-        setSeats(prev => prev.map(seat => 
-           seat.seatNumber === data.seatNumber 
-             ? { ...seat, status: "locked" } 
-             : seat
-        ));
-      }
+    const handleSeatLocked = (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      setSeats(prev => prev.map(seat => 
+         seat.seatId === data.seatId 
+           ? { ...seat, status: "locked" } 
+           : seat
+      ));
+    };
+
+    const handleSeatBooked = (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      setSeats(prev => prev.map(seat => 
+         seat.seatId === data.seatId 
+           ? { ...seat, status: "booked" } 
+           : seat
+      ));
     };
 
     socket.on("seat-unlocked", handleSeatUnlocked);
     socket.on("seat-locked", handleSeatLocked);
+    socket.on("seat-booked", handleSeatBooked);
 
     return () => {
       socket.off("seat-unlocked", handleSeatUnlocked);
       socket.off("seat-locked", handleSeatLocked);
-      leaveScheduleRoom(scheduleId);
+      socket.off("seat-booked", handleSeatBooked);
+      leaveTrainRoom(trainId);
     };
-  }, [scheduleId]);
+  }, [trainId, scheduleId, departureStationId, arrivalStationId, journeyRange.depOrder, journeyRange.arrOrder]);
 
   // Removed Cleanup: UNLOCK ONLY ON UNMOUNT 
   // Per requirements: Do NOT unlock seats when user navigates away or refreshes the page
@@ -125,7 +200,7 @@ const SeatSelection: React.FC = () => {
       // Manual unlock via user click
       try {
         setProcessingId(seat.seatId);
-        await seatService.unlockSeat(scheduleId, seat.seatNumber);
+        await seatService.unlockSeat(scheduleId, seat.seatId);
         setSelectedSeats((prev) => prev.filter((s) => s.seatId !== seat.seatId));
         toast.success(`Đã bỏ chọn ghế ${seat.seatNumber}`);
       } catch (error: any) {
@@ -146,7 +221,12 @@ const SeatSelection: React.FC = () => {
             toast.error("Thiếu thông tin ga đi hoặc ga đến. Vui lòng tìm kiếm lại.");
             return;
         }
-        const lockRes: any = await seatService.lockSeat(scheduleId, seat.seatNumber, departureStationId, arrivalStationId);
+        const lockRes: any = await seatService.lockSeat(
+          scheduleId,
+          seat.seatId,
+          departureStationId,
+          arrivalStationId
+        );
 
         // If this is the FIRST seat locked, set the global expiration timer
         if (selectedSeats.length === 0 && lockRes?.data?.expiresAt) {

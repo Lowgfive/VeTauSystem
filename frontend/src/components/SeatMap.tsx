@@ -16,10 +16,38 @@ import {
 } from 'lucide-react';
 import { seatService, SeatInfo } from '../services/seat.service';
 import { toast } from 'sonner';
-import { getSocket, connectSocket, joinScheduleRoom, leaveScheduleRoom } from '../config/socket';
+import { getSocket, connectSocket, joinTrainRoom, leaveTrainRoom } from '../config/socket';
 import { addMyLock, removeMyLock, isMyLock, getMyLocks } from '../utils/mySeatLocks';
 import { useAppSelector } from "../hooks/useRedux";
 import { useNavigate, useLocation } from "react-router-dom";
+
+type SeatSocketEvent = {
+  trainId: string;
+  seatId: string;
+  seatNumber: string;
+  depOrder?: number;
+  arrOrder?: number;
+};
+
+const normalizeRange = (start: number, end: number) => ({
+  start: Math.min(start, end),
+  end: Math.max(start, end),
+});
+
+const rangesOverlap = (
+  startA?: number,
+  endA?: number,
+  startB?: number,
+  endB?: number
+) => {
+  if (startA == null || endA == null || startB == null || endB == null) {
+    return true;
+  }
+
+  const rangeA = normalizeRange(startA, endA);
+  const rangeB = normalizeRange(startB, endB);
+  return Math.max(rangeA.start, rangeB.start) < Math.min(rangeA.end, rangeB.end);
+};
 
 
 // Reusable Seat Item Internal Component
@@ -109,6 +137,7 @@ export interface SeatMapProps {
 export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onSeatDeselect, onRestoreHeldSeats }: SeatMapProps) {
   const departureStationId = schedule?.origin?.id || schedule?.originId;
   const arrivalStationId = schedule?.destination?.id || schedule?.destinationId;
+  const scheduleTrainId = schedule?.trainId || schedule?.train?._id;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,6 +148,11 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
   const [loading, setLoading] = useState(true);
   const [activeCarriage, setActiveCarriage] = useState<string>('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [trainId, setTrainId] = useState<string>(scheduleTrainId || '');
+  const [journeyRange, setJourneyRange] = useState<{ depOrder?: number; arrOrder?: number }>({
+    depOrder: schedule?.origin?.station_order,
+    arrOrder: schedule?.destination?.station_order,
+  });
 
   const selectedSeatsRef = useRef<SeatInfo[]>([]);
 
@@ -133,8 +167,17 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
     const loadData = async () => {
       try {
         setLoading(true);
-        const res = await seatService.getSeatsBySchedule(scheduleId);
+        const res = await seatService.getSeatsBySchedule(
+          scheduleId,
+          departureStationId,
+          arrivalStationId
+        );
         if (res.success && res.data && Array.isArray(res.data.seats)) {
+          setTrainId(res.data.trainId || scheduleTrainId || '');
+          setJourneyRange({
+            depOrder: res.data.depOrder ?? schedule?.origin?.station_order,
+            arrOrder: res.data.arrOrder ?? schedule?.destination?.station_order,
+          });
           setSeats(res.data.seats);
           
           if (onRestoreHeldSeats) {
@@ -147,7 +190,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
           }
 
           if (res.data.seats.length > 0) {
-            setActiveCarriage(res.data.seats[0].carriageId);
+            setActiveCarriage(prev => prev || res.data.seats[0].carriageId);
           }
         } else {
           setSeats([]);
@@ -162,47 +205,82 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ fetch khi scheduleId đổi; activeCarriage chỉ set lần đầu trong loadData
-  }, [scheduleId, onRestoreHeldSeats]);
+  }, [scheduleId, onRestoreHeldSeats, departureStationId, arrivalStationId, scheduleTrainId]);
 
   // Handle Real-time Socket Updates
   useEffect(() => {
-    if (!scheduleId) return;
+    if (!trainId) return;
 
     connectSocket();
-    joinScheduleRoom(scheduleId);
+    joinTrainRoom(trainId);
     const socket = getSocket();
 
-    const handleSeatUnlocked = (data: { scheduleId: string, seatNumber: string }) => {
-      if (data.scheduleId === scheduleId) {
-   
-        setSeats(prev => prev.map(seat => 
-          seat.seatNumber === data.seatNumber 
-            ? { ...seat, status: "available" } 
-            : seat
-        ));
+    const shouldApplySeatEvent = (data: SeatSocketEvent) =>
+      data.trainId === trainId &&
+      rangesOverlap(
+        journeyRange.depOrder,
+        journeyRange.arrOrder,
+        data.depOrder,
+        data.arrOrder
+      );
+
+    const handleSeatUnlocked = async (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      try {
+        const res = await seatService.getSeatsBySchedule(
+          scheduleId,
+          departureStationId,
+          arrivalStationId
+        );
+        if (res.success && res.data && Array.isArray(res.data.seats)) {
+          setJourneyRange({
+            depOrder: res.data.depOrder ?? journeyRange.depOrder,
+            arrOrder: res.data.arrOrder ?? journeyRange.arrOrder,
+          });
+          setSeats(res.data.seats);
+        }
+      } catch (error) {
+        console.error("Failed to refresh seats after unlock event:", error);
       }
     };
 
-    const handleSeatLocked = (data: { scheduleId: string, seatNumber: string }) => {
-      if (data.scheduleId === scheduleId) {
-        
-        setSeats(prev => prev.map(seat => {
-          if (seat.seatNumber !== data.seatNumber) return seat;
-  
-          return { ...seat, status: "locked" as const };
-        }));
-      }
+    const handleSeatLocked = (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      setSeats(prev => prev.map(seat => {
+        if (seat.seatId !== data.seatId) return seat;
+        return { ...seat, status: "locked" as const };
+      }));
+    };
+
+    const handleSeatBooked = (data: SeatSocketEvent) => {
+      if (!shouldApplySeatEvent(data)) return;
+
+      setSeats(prev => prev.map(seat => {
+        if (seat.seatId !== data.seatId) return seat;
+        return { ...seat, status: "booked" as const };
+      }));
     };
 
     socket.on("seat-unlocked", handleSeatUnlocked);
     socket.on("seat-locked", handleSeatLocked);
+    socket.on("seat-booked", handleSeatBooked);
 
     return () => {
       socket.off("seat-unlocked", handleSeatUnlocked);
       socket.off("seat-locked", handleSeatLocked);
-      leaveScheduleRoom(scheduleId);
+      socket.off("seat-booked", handleSeatBooked);
+      leaveTrainRoom(trainId);
     };
-  }, [scheduleId]);
+  }, [
+    trainId,
+    scheduleId,
+    departureStationId,
+    arrivalStationId,
+    journeyRange.depOrder,
+    journeyRange.arrOrder,
+  ]);
 
   // 2. Group seats by carriageId safely
   const seatsByCarriage = useMemo(() => {

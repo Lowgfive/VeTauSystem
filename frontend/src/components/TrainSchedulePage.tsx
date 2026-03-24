@@ -99,13 +99,6 @@ const generateMockTrains = (): TrainStatus[] => {
           platform: "2",
         },
         {
-          name: "Ninh Bình",
-          arrivalTime: "21:30",
-          departureTime: "21:35",
-          status: "completed",
-          platform: "1",
-        },
-        {
           name: "Thanh Hóa",
           arrivalTime: "23:15",
           departureTime: "23:20",
@@ -235,13 +228,6 @@ const generateMockTrains = (): TrainStatus[] => {
           departureTime: "06:00",
           status: "completed",
           platform: "2",
-        },
-        {
-          name: "Ninh Bình",
-          arrivalTime: "08:30",
-          departureTime: "08:35",
-          status: "completed",
-          platform: "1",
         },
         {
           name: "Thanh Hóa",

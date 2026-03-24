@@ -3,7 +3,6 @@ import { Station, Train, Schedule, Carriage, Seat, SeatTypeInfo, Booking } from 
 // Danh sách ga đường sắt chính
 export const stations: Station[] = [
   { id: 'hn', name: 'Hà Nội', code: 'HN', province: 'Hà Nội' },
-  { id: 'nb', name: 'Ninh Bình', code: 'NB', province: 'Ninh Bình' },
   { id: 'tn', name: 'Thanh Hóa', code: 'TH', province: 'Thanh Hóa' },
   { id: 'v', name: 'Vinh', code: 'V', province: 'Nghệ An' },
   { id: 'hue', name: 'Huế', code: 'HUE', province: 'Thừa Thiên Huế' },

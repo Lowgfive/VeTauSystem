@@ -5,4 +5,5 @@ export interface IRoute {
   arrival_station_id: Types.ObjectId;
   distance: number;
   hour: number;
+  base_price?: number;
 }

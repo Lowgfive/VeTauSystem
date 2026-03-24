@@ -62,13 +62,13 @@ export const initSocket = (httpServer: HttpServer): Server => {
       socket.join(`user:${userId}`);
     }
 
-    // Join a schedule room for realtime seat status
-    socket.on("join-schedule", (scheduleId: string) => {
-      socket.join(`schedule:${scheduleId}`);
+    // Join a train room for realtime seat status across overlapping segments
+    socket.on("join-train", (trainId: string) => {
+      socket.join(`train:${trainId}`);
     });
 
-    socket.on("leave-schedule", (scheduleId: string) => {
-      socket.leave(`schedule:${scheduleId}`);
+    socket.on("leave-train", (trainId: string) => {
+      socket.leave(`train:${trainId}`);
     });
 
     socket.on("disconnect", () => {
@@ -91,10 +91,10 @@ export const getIO = (): Server => {
 
 /** Emit seat status update to everyone viewing a schedule */
 export const emitSeatUpdate = (
-  scheduleId: string,
+  trainId: string,
   data: { seatId: string; status: "EMPTY" | "LOCKED" | "SOLD" }
 ) => {
-  getIO().to(`schedule:${scheduleId}`).emit("seat-updated", data);
+  getIO().to(`train:${trainId}`).emit("seat-updated", data);
 };
 
 /** Emit booking confirmation to a specific user */

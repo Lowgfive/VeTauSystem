@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Train,
   Menu,
@@ -41,7 +41,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Footer } from "./Footer";
 import { PromoSlider } from "./PromoSlider";
-import { stations } from "../data/mockData";
+import { fetchStations, StationOption } from "../services/station.service";
 import { SearchParams } from "../types";
 
 interface HomepageProps {
@@ -70,6 +70,7 @@ export function Homepage({
   userName,
 }: HomepageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [stations, setStations] = useState<StationOption[]>([]);
   const [originId, setOriginId] = useState<string>("");
   const [destinationId, setDestinationId] =
     useState<string>("");
@@ -78,6 +79,7 @@ export function Homepage({
   const [returnDate, setReturnDate] = useState<string>("");
   const [isRoundTrip, setIsRoundTrip] = useState(false);
   const [passengerCount, setPassengerCount] = useState(1);
+  const [loadingStations, setLoadingStations] = useState(true);
 
   // Load last search from localStorage
   useState(() => {
@@ -93,6 +95,29 @@ export function Homepage({
       // Ignore localStorage errors
     }
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchStations()
+      .then((stationList) => {
+        if (mounted) {
+          setStations(stationList);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load stations:", error);
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoadingStations(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +164,9 @@ export function Homepage({
     date.setDate(date.getDate() + days);
     setDepartureDate(date.toISOString().split("T")[0]);
   };
+
+  const findStationByCode = (code: string) =>
+    stations.find((station) => station.code.toLowerCase() === code.toLowerCase());
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split("T")[0];
@@ -455,6 +483,7 @@ export function Homepage({
                           <Select
                             value={originId}
                             onValueChange={setOriginId}
+                            disabled={loadingStations}
                             required
                           >
                             <SelectTrigger
@@ -507,6 +536,7 @@ export function Homepage({
                           <Select
                             value={destinationId}
                             onValueChange={setDestinationId}
+                            disabled={loadingStations}
                             required
                           >
                             <SelectTrigger
@@ -542,18 +572,18 @@ export function Homepage({
                       </div>
                       {[
                         {
-                          from: "hanoi",
-                          to: "saigon",
+                          from: "HN",
+                          to: "SG",
                           label: "HN → SG",
                         },
                         {
-                          from: "hanoi",
-                          to: "danang",
+                          from: "HN",
+                          to: "DN",
                           label: "HN → ĐN",
                         },
                         {
-                          from: "saigon",
-                          to: "danang",
+                          from: "SG",
+                          to: "DN",
                           label: "SG → ĐN",
                         },
                       ].map((route, idx) => (
@@ -563,10 +593,13 @@ export function Homepage({
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setOriginId(route.from);
-                            setDestinationId(route.to);
+                            const fromStation = findStationByCode(route.from);
+                            const toStation = findStationByCode(route.to);
+                            setOriginId(fromStation?.id || "");
+                            setDestinationId(toStation?.id || "");
                           }}
                           className="h-8 px-4 text-xs font-medium border-2 border-gray-200 hover:border-primary hover:bg-primary/5 hover:text-primary rounded-full transition-all shadow-sm hover:shadow-md"
+                          disabled={loadingStations}
                         >
                           {route.label}
                         </Button>
@@ -696,9 +729,7 @@ export function Homepage({
                             <Plus className="w-5 h-5" />
                           </Button>
                         </div>
-                        <p className="text-xs text-gray-500 text-center">
-                          Tối đa 10 hành khách
-                        </p>
+                        
                       </div>
                     )}
                   </div>
@@ -710,6 +741,8 @@ export function Homepage({
                       size="lg"
                       className="w-full h-16 bg-gradient-to-r from-primary via-primary to-secondary hover:from-primary/90 hover:via-primary/90 hover:to-secondary/90 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl group relative overflow-hidden"
                       disabled={
+                        loadingStations ||
+                        !stations.length ||
                         !originId ||
                         !destinationId ||
                         !departureDate ||

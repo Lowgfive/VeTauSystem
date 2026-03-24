@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { stations } from '../data/mockData';
+import { fetchStations, StationOption } from '../services/station.service';
 import { SearchParams } from '../types';
 
 interface SearchFormProps {
@@ -12,15 +12,40 @@ interface SearchFormProps {
 }
 
 export function SearchForm({ onSearch }: SearchFormProps) {
+  const [stations, setStations] = useState<StationOption[]>([]);
   const [originId, setOriginId] = useState('');
   const [destinationId, setDestinationId] = useState('');
   const [date, setDate] = useState('');
+  const [loadingStations, setLoadingStations] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchStations()
+      .then((stationList) => {
+        if (mounted) {
+          setStations(stationList);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load stations:', error);
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoadingStations(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (originId && destinationId && date) {
-      const originStation = stations.find((s) => s.id === originId);
-      const destinationStation = stations.find((s) => s.id === destinationId);
+      const originStation = stations.find((station) => station.id === originId);
+      const destinationStation = stations.find((station) => station.id === destinationId);
       onSearch({
         originId,
         destinationId,
@@ -33,7 +58,6 @@ export function SearchForm({ onSearch }: SearchFormProps) {
     }
   };
 
-  // Get today's date as minimum date
   const today = new Date();
   const minDate = today.toISOString().split('T')[0];
 
@@ -44,11 +68,11 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           <div className="space-y-2">
             <Label htmlFor="from" className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Ga đi
+              Ga di
             </Label>
-            <Select value={originId} onValueChange={setOriginId}>
+            <Select value={originId} onValueChange={setOriginId} disabled={loadingStations}>
               <SelectTrigger id="from">
-                <SelectValue placeholder="Chọn ga đi" />
+                <SelectValue placeholder={loadingStations ? 'Dang tai danh sach ga...' : 'Chon ga di'} />
               </SelectTrigger>
               <SelectContent>
                 {stations.map((station) => (
@@ -63,11 +87,11 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           <div className="space-y-2">
             <Label htmlFor="to" className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Ga đến
+              Ga den
             </Label>
-            <Select value={destinationId} onValueChange={setDestinationId}>
+            <Select value={destinationId} onValueChange={setDestinationId} disabled={loadingStations}>
               <SelectTrigger id="to">
-                <SelectValue placeholder="Chọn ga đến" />
+                <SelectValue placeholder={loadingStations ? 'Dang tai danh sach ga...' : 'Chon ga den'} />
               </SelectTrigger>
               <SelectContent>
                 {stations.map((station) => (
@@ -82,7 +106,7 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           <div className="space-y-2">
             <Label htmlFor="date" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Ngày đi
+              Ngay di
             </Label>
             <input
               id="date"
@@ -96,8 +120,8 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full" size="lg">
-          Tìm chuyến tàu
+        <Button type="submit" className="w-full" size="lg" disabled={loadingStations || !stations.length}>
+          Tim chuyen tau
         </Button>
       </form>
     </Card>

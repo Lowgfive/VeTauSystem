@@ -15,6 +15,7 @@ const routeSchema = new Schema<IRoute>(
     },
     distance: { type: Number, required: true },
     hour: { type: Number, required: true },
+    base_price: { type: Number, required: false },
   },
   { timestamps: true }
 );

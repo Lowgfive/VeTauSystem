@@ -13,6 +13,9 @@ export interface SeatMapResponse {
   success: boolean;
   data: {
     scheduleId: string;
+    trainId: string;
+    depOrder?: number;
+    arrOrder?: number;
     seats: SeatInfo[];
   };
 }
@@ -21,8 +24,17 @@ export const seatService = {
   /**
    * Fetch seats for a specific schedule
    */
-  getSeatsBySchedule: async (scheduleId: string): Promise<SeatMapResponse> => {
-    const response = await apiClient.get(`/schedules/${scheduleId}/seats`);
+  getSeatsBySchedule: async (
+    scheduleId: string,
+    departureStationId?: string,
+    arrivalStationId?: string
+  ): Promise<SeatMapResponse> => {
+    const response = await apiClient.get(`/schedules/${scheduleId}/seats`, {
+      params: {
+        ...(departureStationId && { departureStationId }),
+        ...(arrivalStationId && { arrivalStationId }),
+      },
+    });
     return response.data;
   },
 
