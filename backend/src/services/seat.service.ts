@@ -266,6 +266,25 @@ export const emitSeatBooked = (
   );
 };
 
+export const emitSeatLockedState = (
+  trainId: string,
+  scheduleId: string,
+  seatId: string,
+  seatNumber: string,
+  depOrder: number,
+  arrOrder: number
+) => {
+  emitSeatEvent(
+    "seat-locked",
+    trainId,
+    scheduleId,
+    seatId,
+    seatNumber,
+    depOrder,
+    arrOrder
+  );
+};
+
 export const unlockSeatByIdForUser = async (
   seatId: string,
   userId: string

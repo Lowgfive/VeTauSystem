@@ -188,7 +188,7 @@ export default class ScheduleService {
     const bookings = await BookingModel.find({
       schedule_id: new mongoose.Types.ObjectId(id),
       status: { $in: ["pending", "confirmed", "paid", "changed"] },
-    }).select("_id").lean();
+    }).select("_id status").lean();
 
     const bookingIds = bookings.map((b) => b._id);
 
@@ -257,12 +257,21 @@ export default class ScheduleService {
     }
 
     const bookedSeatIds = new Set<string>(
-      relevantBookingPassengers.map((bp: any) => String(bp.seat_id?._id || bp.seat_id))
+      relevantBookingPassengers
+        .filter((bp: any) => String(bp.booking_id?.status) !== "pending")
+        .map((bp: any) => String(bp.seat_id?._id || bp.seat_id))
+    );
+
+    const pendingSeatIds = new Set<string>(
+      relevantBookingPassengers
+        .filter((bp: any) => String(bp.booking_id?.status) === "pending")
+        .map((bp: any) => String(bp.seat_id?._id || bp.seat_id))
     );
 
     // Fallback cho logic lấy bằng seat_number
     const bookedSeatNumbers = new Set<string>(
       relevantBookingPassengers
+        .filter((bp: any) => String(bp.booking_id?.status) !== "pending")
         .map((bp: any) => String(bp.seatInfo?.seatNumber || bp.seat_id?.seat_number))
         .filter(Boolean)
     );
@@ -280,7 +289,7 @@ export default class ScheduleService {
       const seatNumber = String(seat.seat_number);
       const seatId = String(seat._id);
       const isBooked = bookedSeatIds.has(seatId) || bookedSeatNumbers.has(seatNumber);
-      const isLocked = !isBooked && !!lockMap[seatId];
+      const isLocked = !isBooked && (pendingSeatIds.has(seatId) || !!lockMap[seatId]);
 
       return {
         seatNumber,

@@ -14,6 +14,10 @@ import {
   calculateBaseRoutePrice,
   getSeatTypeMultiplier,
 } from "../utils/pricing";
+import {
+  getPassengerDiscountRate,
+  validatePassengerTypeAndDob,
+} from "../utils/passenger-pricing";
 
 export const createBooking = asyncHandler(
   async (req: AuthRequest, res: Response) => {
@@ -137,21 +141,19 @@ export const createBooking = asyncHandler(
     const insuranceFee = 1000;
     const validSeatsData: any[] = [];
 
-    const getDiscountRate = (type?: string) => {
-      if (type === "Tre em") return 0.25;
-      if (type === "Sinh vien") return 0.1;
-      if (type === "Nguoi cao tuoi") return 0.15;
-      if (type === "Trẻ em") return 0.25;
-      if (type === "Sinh viên") return 0.1;
-      if (type === "Người cao tuổi") return 0.15;
-      return 0;
-    };
-
     let calculatedTotalAmount = 0;
 
     for (const seatReq of seats) {
       const { seat_id, full_name, id_number, dob, gender, passenger_type } =
         seatReq;
+
+      const passengerValidationError = validatePassengerTypeAndDob(passenger_type, dob);
+      if (passengerValidationError) {
+        return res.status(400).json({
+          success: false,
+          message: passengerValidationError,
+        });
+      }
 
       const seat = await Seat.findById(seat_id);
       if (!seat) {
@@ -195,7 +197,7 @@ export const createBooking = asyncHandler(
       const actualBasePrice = Math.round(
         routeBasePrice * getSeatTypeMultiplier(seat.seat_type || "soft_seat")
       );
-      const actualDiscountRate = getDiscountRate(passenger_type);
+      const actualDiscountRate = getPassengerDiscountRate(passenger_type, dob);
       const actualTicketPrice =
         actualBasePrice * (1 - actualDiscountRate) + insuranceFee;
 
@@ -265,7 +267,7 @@ export const createBooking = asyncHandler(
     const seatIds = validSeatsData.map((validSeat) => String(validSeat.seat_id));
     await seatLockService.releaseSeatLocks(trainId, seatIds, userId);
     for (const validSeat of validSeatsData) {
-      seatLockService.emitSeatBooked(
+      seatLockService.emitSeatLockedState(
         trainId,
         scheduleId,
         String(validSeat.seat_id),

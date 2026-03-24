@@ -7,6 +7,10 @@ import { Passenger } from "../models/passenger.model";
 import { BookingPassenger } from "../models/bookingpassenger.model";
 import { Schedule } from "../models/schedule.model";
 import mongoose from "mongoose";
+import {
+  getPassengerDiscountRate,
+  validatePassengerTypeAndDob,
+} from "../utils/passenger-pricing";
 
 const generateBookingCode = (): string => {
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -14,16 +18,14 @@ const generateBookingCode = (): string => {
     return `BK-${timestamp}-${random}`;
 };
 
-const DISCOUNT_RATES: any = {
-    adult: 0,
-    child: 0.30,
-    senior: 0.20,
-    disabled: 0.50,
-};
 const TAX_RATE = 0.10;
 
-export const calculateFareDetails = (basePrice: number, passengerType: "adult" | "child" | "senior" | "disabled" = "adult") => {
-    const discountRate = DISCOUNT_RATES[passengerType] || 0;
+export const calculateFareDetails = (
+    basePrice: number,
+    passengerType: string = "adult",
+    dob?: string
+) => {
+    const discountRate = getPassengerDiscountRate(passengerType, dob);
     const discountAmount = basePrice * discountRate;
     const afterDiscount = basePrice - discountAmount;
     const taxAmount = afterDiscount * TAX_RATE;
@@ -39,7 +41,7 @@ export const calculateFareDetails = (basePrice: number, passengerType: "adult" |
 };
 
 export const calculateFare = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { seat_id, passenger_type } = req.body;
+    const { seat_id, passenger_type, dob } = req.body;
 
     if (!seat_id) {
         return res.status(400).json({ success: false, message: "Thiếu seat_id" });
@@ -50,7 +52,12 @@ export const calculateFare = asyncHandler(async (req: AuthRequest, res: Response
         return res.status(404).json({ success: false, message: "Không tìm thấy ghế" });
     }
 
-    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type || "adult");
+    const validationError = validatePassengerTypeAndDob(passenger_type, dob);
+    if (validationError) {
+        return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type || "adult", dob);
 
     res.status(200).json({
         success: true,
@@ -90,7 +97,14 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
     }
 
     const passenger_type = req.body.passenger_type || "adult";
-    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type);
+    const dob = req.body.dob;
+
+    const validationError = validatePassengerTypeAndDob(passenger_type, dob);
+    if (validationError) {
+        return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const fareDetails = calculateFareDetails(seat.price ?? 0, passenger_type, dob);
 
     const scheduleDetail = await Schedule.findById(schedule_id).populate("route_id");
     

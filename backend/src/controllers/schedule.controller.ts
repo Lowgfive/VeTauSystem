@@ -94,7 +94,7 @@ export const getSeatMapBySchedule = async (req: Request, res: Response) => {
     const bookings = await BookingModel.find({
       schedule_id: new mongoose.Types.ObjectId(id),
       status: { $in: ["pending", "confirmed", "paid"] },
-    }).select("_id").lean();
+    }).select("_id status").lean();
 
     const bookingIds = bookings.map((b) => b._id);
 
@@ -102,9 +102,21 @@ export const getSeatMapBySchedule = async (req: Request, res: Response) => {
     const bookingPassengers = await BookingPassenger.find({
       booking_id: { $in: bookingIds },
       status: { $in: ["reserved", "confirmed", "paid"] }
-    }).select("seat_id").lean();
+    })
+      .select("seat_id booking_id")
+      .populate({ path: "booking_id", select: "status" })
+      .lean();
 
-    const bookedSeatIds = new Set<string>(bookingPassengers.map((bp: any) => String(bp.seat_id)));
+    const bookedSeatIds = new Set<string>(
+      bookingPassengers
+        .filter((bp: any) => String(bp.booking_id?.status) !== "pending")
+        .map((bp: any) => String(bp.seat_id))
+    );
+    const pendingSeatIds = new Set<string>(
+      bookingPassengers
+        .filter((bp: any) => String(bp.booking_id?.status) === "pending")
+        .map((bp: any) => String(bp.seat_id))
+    );
 
     const { carriages, seatsByCarriage } = baseSeatMap;
 
@@ -112,8 +124,12 @@ export const getSeatMapBySchedule = async (req: Request, res: Response) => {
     const updatedSeatsByCarriage: Record<string, any[]> = {};
     Object.entries(seatsByCarriage).forEach(([carriageId, seats]) => {
       updatedSeatsByCarriage[carriageId] = seats.map((seat: any) => {
-        if (bookedSeatIds.has(String(seat._id))) {
+        const seatId = String(seat._id);
+        if (bookedSeatIds.has(seatId)) {
           return { ...seat.toObject?.() ?? seat, status: "booked" };
+        }
+        if (pendingSeatIds.has(seatId)) {
+          return { ...seat.toObject?.() ?? seat, status: "locked" };
         }
         return seat;
       });
