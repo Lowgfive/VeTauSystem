@@ -1,12 +1,12 @@
 import { ReactNode } from 'react';
-import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock } from 'lucide-react';
+import { LayoutDashboard, Ticket, Train, BarChart3, LogOut, Menu, X, MapPin, CalendarClock, Wallet } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 
 interface AdminLayoutProps {
   children: ReactNode;
-  activeTab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports';
-  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports') => void;
+  activeTab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports' | 'wallet';
+  onTabChange: (tab: 'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports' | 'wallet') => void;
   onLogout: () => void;
 }
 
@@ -20,6 +20,7 @@ export function AdminLayout({ children, activeTab, onTabChange, onLogout }: Admi
     { id: 'stations' as const, label: 'Ga tàu', icon: MapPin },
     { id: 'schedules' as const, label: 'Lịch trình', icon: CalendarClock },
     { id: 'reports' as const, label: 'Báo cáo', icon: BarChart3 },
+    { id: 'wallet' as const, label: 'Quản lý Ví', icon: Wallet },
   ];
 
   return (

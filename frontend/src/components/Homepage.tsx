@@ -209,6 +209,14 @@ export function Homepage({
                   Hồ sơ
                 </a>
               )}
+              {isLoggedIn && (
+                <a
+                  href="/wallet"
+                  className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
+                >
+                  Ví của tôi
+                </a>
+              )}
               <a
                 href="#"
                 onClick={(e) => {
@@ -312,6 +320,14 @@ export function Homepage({
                     className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
                   >
                     Hồ sơ
+                  </a>
+                )}
+                {isLoggedIn && (
+                  <a
+                    href="/wallet"
+                    className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
+                  >
+                    Ví của tôi
                   </a>
                 )}
                 <a

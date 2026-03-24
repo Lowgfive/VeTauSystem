@@ -17,7 +17,10 @@ import {
   ChevronRight,
   Info,
   Loader2,
+  Wallet,
 } from "lucide-react";
+import { walletService } from "../services/wallet.service";
+import { toast } from "sonner";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -29,7 +32,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 
 interface PaymentPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   onPaymentSuccess?: () => void;
   bookingData?: {
     trainCode: string;
@@ -52,7 +55,17 @@ interface PaymentPageProps {
   };
 }
 
+import { useNavigate } from "react-router-dom";
+
 export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPageProps) {
+  const navigate = useNavigate();
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
   const [paymentMethod, setPaymentMethod] = useState("qr");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -62,6 +75,21 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
     name: "",
     expiry: "",
     cvv: "",
+  });
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useState(() => {
+    const fetchBalance = async () => {
+      try {
+        const res = await walletService.getWallet();
+        if (res.success) {
+          setWalletBalance(res.data.wallet.balance);
+        }
+      } catch (error) {
+        console.error("Failed to fetch wallet balance", error);
+      }
+    };
+    fetchBalance();
   });
 
   // Mock booking data if not provided
@@ -82,6 +110,13 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
       { name: "Trần Thị B", id: "001234567891", phone: "0987654322" },
     ],
     totalPrice: 1900000,
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
   };
 
   const paymentMethods = [
@@ -109,14 +144,15 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
       badge: "Ưu đãi 5%",
       badgeColor: "bg-orange-100 text-orange-800",
     },
+    {
+      id: "wallet",
+      name: "Ví của tôi",
+      icon: Wallet,
+      description: `Số dư: ${walletBalance !== null ? formatPrice(walletBalance) : "Đang tải..."}`,
+      badge: walletBalance !== null && walletBalance >= booking.totalPrice ? "Sẵn sàng" : "Nạp thêm",
+      badgeColor: walletBalance !== null && walletBalance >= booking.totalPrice ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800",
+    },
   ];
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
-  };
 
   const formatCardNumber = (value: string) => {
     const cleaned = value.replace(/\s/g, "");
@@ -147,7 +183,30 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
 
     setIsProcessing(true);
 
-    // Simulate payment processing
+    if (paymentMethod === "wallet") {
+      // Wallet payment logic
+      const handleWalletPayment = async () => {
+        try {
+          const res = await walletService.payWithWallet((booking as any)._id || "mock-id");
+          if (res.success) {
+            setIsProcessing(false);
+            setShowSuccessModal(true);
+            setTimeout(() => {
+              if (onPaymentSuccess) onPaymentSuccess();
+            }, 2000);
+          } else {
+            throw new Error(res.message);
+          }
+        } catch (error: any) {
+          setIsProcessing(false);
+          toast.error(error.message || "Lỗi thanh toán bằng ví");
+        }
+      };
+      handleWalletPayment();
+      return;
+    }
+
+    // Simulate other payment methods
     setTimeout(() => {
       setIsProcessing(false);
       setShowSuccessModal(true);
@@ -429,7 +488,7 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       <Checkbox
                         id="terms"
                         checked={acceptTerms}
-                        onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                        onCheckedChange={(checked: boolean) => setAcceptTerms(checked)}
                         className="mt-1"
                       />
                       <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
@@ -440,6 +499,23 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                         của Đường Sắt Việt Nam. Tôi xác nhận rằng thông tin đã cung cấp là chính xác.
                       </label>
                     </div>
+
+                    {paymentMethod === "wallet" && walletBalance !== null && walletBalance < booking.totalPrice && (
+                      <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-red-900 text-sm">Số dư không đủ</p>
+                          <p className="text-xs text-red-700">Vui lòng nạp thêm {formatPrice(booking.totalPrice - walletBalance)} để thanh toán.</p>
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto text-xs text-red-800 font-bold underline mt-1"
+                            onClick={() => window.location.href = "/wallet"}
+                          >
+                            Nạp tiền ngay
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     <Separator />
 
@@ -457,7 +533,7 @@ export function PaymentPage({ onBack, onPaymentSuccess, bookingData }: PaymentPa
                       ) : (
                         <>
                           <Lock className="w-5 h-5 mr-2" />
-                          Thanh toán {formatPrice(booking.totalPrice)}
+                          {paymentMethod === "wallet" ? "Thanh toán bằng Ví" : `Thanh toán ${formatPrice(booking.totalPrice)}`}
                         </>
                       )}
                     </Button>

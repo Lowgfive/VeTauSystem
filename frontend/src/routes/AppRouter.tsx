@@ -17,6 +17,7 @@ const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 const ProfilePage = lazy(() => import("../pages/ProfilePage"));
 const ForgotPasswordPage = lazy(() => import("../pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("../pages/ResetPasswordPage"));
+const WalletPage = lazy(() => import("../pages/WalletPage"));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -70,6 +71,7 @@ export const AppRouter = () => (
             {/* Protected - must be logged in */}
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
 
             {/* Admin only (Temporarily bypassed for testing) */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />

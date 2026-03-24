@@ -7,8 +7,8 @@ import { cn } from './ui/utils';
 import { Armchair, BedDouble, Info, CheckCircle2, Lock, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface SeatMapProps {
-  carriages: Carriage[];
-  seatsData: Record<string, Seat[]>;
+  carriages?: Carriage[];
+  seatsData?: Record<string, Seat[]>;
   selectedSeats?: Seat[];
   onSeatSelect?: (seat: Seat) => void;
   maxSeats?: number;
@@ -16,8 +16,8 @@ interface SeatMapProps {
 }
 
 export function SeatMap({
-  carriages,
-  seatsData,
+  carriages = [],
+  seatsData = {},
   selectedSeats = [],
   onSeatSelect,
   maxSeats = 8,

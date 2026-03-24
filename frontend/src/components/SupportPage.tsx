@@ -39,7 +39,7 @@ import {
 } from "./ui/select";
 
 interface SupportPageProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 interface FAQ {
@@ -111,7 +111,17 @@ const faqs: FAQ[] = [
   },
 ];
 
+import { useNavigate } from "react-router-dom";
+
 export function SupportPage({ onBack }: SupportPageProps) {
+  const navigate = useNavigate();
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
@@ -180,7 +190,7 @@ export function SupportPage({ onBack }: SupportPageProps) {
 
             {/* Back Button */}
             <Button
-              onClick={onBack}
+              onClick={handleBack}
               variant="secondary"
               size="sm"
               className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg"
@@ -449,7 +459,7 @@ export function SupportPage({ onBack }: SupportPageProps) {
                     <Select
                       required
                       value={formData.subject}
-                      onValueChange={(value) =>
+                      onValueChange={(value: string) =>
                         setFormData({ ...formData, subject: value })
                       }
                     >

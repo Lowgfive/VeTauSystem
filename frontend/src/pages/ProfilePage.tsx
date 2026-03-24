@@ -10,7 +10,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "../components/ui/card";
 import { toast } from "sonner";
-import { Loader2, User as UserIcon, ArrowLeft } from "lucide-react";
+import { Loader2, User as UserIcon, ArrowLeft, Wallet } from "lucide-react";
 
 interface ProfileFormData {
   name: string;
@@ -99,13 +99,19 @@ export default function ProfilePage() {
               Quay lại
             </Button>
             
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <UserIcon className="w-6 h-6 text-primary" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <UserIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                  Hồ sơ cá nhân
+                </h1>
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                Hồ sơ cá nhân
-              </h1>
+              <Button onClick={() => navigate("/wallet")} variant="outline" className="gap-2 shadow-sm border-2">
+                <Wallet className="w-4 h-4 text-primary" />
+                Ví của tôi
+              </Button>
             </div>
           </div>
 

@@ -9,6 +9,8 @@ import { Route } from "./route.model";
 import { Station } from "./station.model";
 import BookingModel from "./booking.model";
 import UserModel from "./user.model";
+import WalletModel from "./wallet.model";
+import WalletTransactionModel from "./walletTransaction.model";
 
 export {
     Train,
@@ -21,5 +23,7 @@ export {
     Route,
     Station,
     BookingModel,
-    UserModel
+    UserModel,
+    WalletModel,
+    WalletTransactionModel
 };

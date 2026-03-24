@@ -25,10 +25,10 @@ export class VNPayService {
     vnp_Params["vnp_CurrCode"] = "VND";
     vnp_Params["vnp_TxnRef"] = orderId;
     vnp_Params["vnp_OrderInfo"] = orderInfo;
-    vnp_Params["vnp_OrderType"] = "other";
+    vnp_Params["vnp_OrderType"] = "billpayment";
     vnp_Params["vnp_Amount"] = Math.floor(amount * 100);
     vnp_Params["vnp_ReturnUrl"] = returnUrl;
-    vnp_Params["vnp_IpAddr"] = ipAddr;
+    vnp_Params["vnp_IpAddr"] = ipAddr === "::1" || ipAddr === "127.0.0.1" ? "127.0.0.1" : ipAddr;
     vnp_Params["vnp_CreateDate"] = createDate;
 
     vnp_Params = this.sortObject(vnp_Params);
@@ -39,7 +39,11 @@ export class VNPayService {
 
     vnp_Params["vnp_SecureHash"] = signed;
 
+    console.log("VNPay Params:", JSON.stringify(vnp_Params, null, 2));
+    console.log("VNPay Sign Data:", signData);
+    
     vnpUrl += "?" + qs.stringify(vnp_Params, { encode: false });
+    console.log("VNPay Final URL:", vnpUrl);
 
     return vnpUrl;
   }

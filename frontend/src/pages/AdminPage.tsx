@@ -10,12 +10,19 @@ import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 import { StationManagement } from '../components/admin/StationManagement';
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
+import { AdminWalletManagement } from '../components/admin/AdminWalletManagement';
+import { useAppDispatch } from '../hooks/useRedux';
+import { logout } from '../store/slices/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports'>('dashboard');
+    const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'stations' | 'reports' | 'wallet'>('dashboard');
 
     const handleLogout = () => {
-        // Implement logout logic
+        dispatch(logout());
+        navigate('/login');
     };
 
     const renderContent = () => {
@@ -30,6 +37,8 @@ export default function AdminPage() {
                 return <TicketManagement />;
             case 'dashboard':
                 return <AdminDashboard />;
+            case 'wallet':
+                return <AdminWalletManagement />;
             case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">
