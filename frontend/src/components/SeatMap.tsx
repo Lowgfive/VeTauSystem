@@ -155,6 +155,8 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
   });
 
   const selectedSeatsRef = useRef<SeatInfo[]>([]);
+  const recentlyUnlockedSeatsRef = useRef<Map<string, number>>(new Map());
+  const RECENT_UNLOCK_WINDOW_MS = 2000;
 
   useEffect(() => {
     selectedSeatsRef.current = selectedSeats;
@@ -224,6 +226,18 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
         data.arrOrder
       );
 
+    const isRecentlyUnlocked = (seatId: string) => {
+      const unlockedAt = recentlyUnlockedSeatsRef.current.get(seatId);
+      if (!unlockedAt) return false;
+
+      if (Date.now() - unlockedAt > RECENT_UNLOCK_WINDOW_MS) {
+        recentlyUnlockedSeatsRef.current.delete(seatId);
+        return false;
+      }
+
+      return true;
+    };
+
     const handleSeatUnlocked = async (data: SeatSocketEvent) => {
       if (!shouldApplySeatEvent(data)) return;
 
@@ -239,6 +253,9 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
             arrOrder: res.data.arrOrder ?? journeyRange.arrOrder,
           });
           setSeats(res.data.seats);
+          if (selectedSeatsRef.current.some((seat) => seat.seatId === data.seatId)) {
+            onSeatDeselect(data.seatId);
+          }
         }
       } catch (error) {
         console.error("Failed to refresh seats after unlock event:", error);
@@ -247,6 +264,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
 
     const handleSeatLocked = (data: SeatSocketEvent) => {
       if (!shouldApplySeatEvent(data)) return;
+      if (isRecentlyUnlocked(data.seatId)) return;
 
       setSeats(prev => prev.map(seat => {
         if (seat.seatId !== data.seatId) return seat;
@@ -280,6 +298,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
     arrivalStationId,
     journeyRange.depOrder,
     journeyRange.arrOrder,
+    onSeatDeselect,
   ]);
 
   // 2. Group seats by carriageId safely
@@ -307,7 +326,13 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
     try {
       setProcessingId(seat.seatId);
       if (isCurrentlySelected) {
-        await seatService.unlockSeat(scheduleId, seat.seatId).catch(() => {});
+        recentlyUnlockedSeatsRef.current.set(seat.seatId, Date.now());
+        try {
+          await seatService.unlockSeat(scheduleId, seat.seatId);
+        } catch (err) {
+          recentlyUnlockedSeatsRef.current.delete(seat.seatId);
+          throw err;
+        }
         removeMyLock(scheduleId, seat.seatId);
         onSeatDeselect(seat.seatId);
       } else {
@@ -347,7 +372,9 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
         }
       }
     } catch (err: any) {
-      if (!isCurrentlySelected) {
+      if (isCurrentlySelected) {
+         toast.error(err.response?.data?.message || "Không thể bỏ chọn ghế. Vui lòng thử lại.");
+      } else {
          toast.error(err.response?.data?.message || "Thao tác thất bại. Ghế có thể đã bị khóa.");
       }
     } finally {

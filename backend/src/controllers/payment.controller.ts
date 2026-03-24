@@ -123,7 +123,7 @@ export class PaymentController {
       }
 
       return res.redirect(
-        `http://localhost:3000/`
+        `${process.env.CLIENT_URL}/payment-result?status=success&txnRef=${encodeURIComponent(txnRef)}`
       );
     } else {
       // Payment failed

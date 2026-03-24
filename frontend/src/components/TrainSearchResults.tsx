@@ -13,7 +13,7 @@ import { SeatMap } from './SeatMap';
 import { seatService, SeatInfo } from '../services/seat.service';
 import { CountdownDisplay } from './CountdownDisplay';
 import { toast } from 'sonner';
-import { removeMyLock } from '../utils/mySeatLocks';
+import { isMyLock, removeMyLock } from '../utils/mySeatLocks';
 import { calculateSeatPrice } from '../utils/pricing';
 
 interface DisplaySearchParams {
@@ -289,6 +289,19 @@ export function TrainSearchResults({
           removeMyLock(schedule.id, seatId);
           setSeats(prev => prev.filter(s => s.seatId !== seatId));
       } catch(e: any) {
+          const isStaleLocalLock =
+            e?.response?.status === 403 && isMyLock(schedule.id, seatId);
+
+          if (isStaleLocalLock) {
+            removeMyLock(schedule.id, seatId);
+            setSeats(prev => prev.filter(s => s.seatId !== seatId));
+            toast.warning(
+              e.response?.data?.message ||
+                "Ghế đã hết hoặc trạng thái đã thay đổi. Đã gỡ khỏi giỏ để đồng bộ lại."
+            );
+            return;
+          }
+
           toast.error(e.response?.data?.message || "Không thể xoá ghế");
       }
   };

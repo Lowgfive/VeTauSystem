@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PassengerForm } from '../components/PassengerForm';
 import { Passenger } from '../types';
@@ -30,6 +30,14 @@ export default function PassengerInfoPage() {
   const returnSeats = isRoundTrip ? selectedSeats : [];
 
   const [passengers, setPassengers] = useState<Passenger[]>([]);
+
+  useEffect(() => {
+    const shouldShowReturnToast = sessionStorage.getItem("payment_return_notice");
+    if (!shouldShowReturnToast) return;
+
+    sessionStorage.removeItem("payment_return_notice");
+    toast.info("Bạn đã quay lại từ màn thanh toán. Ghế vẫn đang được giữ.");
+  }, []);
 
   const handlePassengerUpdate = (index: number, passenger: Passenger) => {
     setPassengers((prev) => {
@@ -138,7 +146,7 @@ export default function PassengerInfoPage() {
 
   const basePriceOutbound = outboundSchedule?.basePrice || outboundSchedule?.price || 0;
   const basePriceReturn = returnSchedule?.basePrice || returnSchedule?.price || 0;
-  const insuranceFee = 1000;
+  const insuranceFee = 0;
 
   const calculateFare = (passenger: Passenger | undefined, basePrice: number, seatType: string) => {
     const adjustedBasePrice = calculateSeatPrice(basePrice, seatType);
