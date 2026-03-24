@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../store/cartStore";
 import { toast } from "sonner";
 
+const PENDING_PAYMENT_KEY = 'pending_payment';
+
 export default function PaymentResultPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -16,13 +18,16 @@ export default function PaymentResultPage() {
     useEffect(() => {
         if (isSuccess) {
             clearCart();
+            sessionStorage.removeItem(PENDING_PAYMENT_KEY);
             toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
             // Đưa về home sau một chút để user kịp thấy popup thành công
             setTimeout(() => {
                 window.location.href = "/";
             }, 1500);
+        } else if (status === "failed" || status === "error") {
+            sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         }
-    }, [isSuccess, clearCart, txnRef]);
+    }, [isSuccess, status, clearCart, txnRef]);
 
     if (isSuccess) {
         return (

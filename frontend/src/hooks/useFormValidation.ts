@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { calculateAgeFromDateString, parseDateInput } from '../utils/passengerRules';
 
 export interface ValidationRule {
   required?: boolean;
@@ -7,7 +8,7 @@ export interface ValidationRule {
   maxLength?: number;
   min?: number;
   max?: number;
-  custom?: (value: any) => string | null;
+  custom?: (value: any, values?: Record<string, any>) => string | null;
 }
 
 export interface ValidationRules {
@@ -22,7 +23,7 @@ export function useFormValidation(rules: ValidationRules) {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
-  const validateField = useCallback((field: string, value: any): string | null => {
+  const validateField = useCallback((field: string, value: any, values: Record<string, any> = {}): string | null => {
     const rule = rules[field];
     if (!rule) return null;
 
@@ -63,7 +64,7 @@ export function useFormValidation(rules: ValidationRules) {
 
     // Custom validation
     if (rule.custom) {
-      const customError = rule.custom(value);
+      const customError = rule.custom(value, values);
       if (customError) return customError;
     }
 
@@ -75,7 +76,7 @@ export function useFormValidation(rules: ValidationRules) {
     let isValid = true;
 
     Object.keys(rules).forEach(field => {
-      const error = validateField(field, values[field]);
+      const error = validateField(field, values[field], values);
       if (error) {
         newErrors[field] = error;
         isValid = false;
@@ -87,7 +88,7 @@ export function useFormValidation(rules: ValidationRules) {
   }, [rules, validateField]);
 
   const validateSingle = useCallback((field: string, value: any): boolean => {
-    const error = validateField(field, value);
+    const error = validateField(field, value, { [field]: value });
     setErrors(prev => ({
       ...prev,
       [field]: error || ''
@@ -151,7 +152,6 @@ export const commonRules = {
     pattern: validationPatterns.email,
   },
   phone: {
-    required: true,
     pattern: validationPatterns.vietnamesePhone,
   },
   idNumber: {
@@ -160,17 +160,27 @@ export const commonRules = {
     minLength: 9,
     maxLength: 12,
   },
+  idNumberChild: {
+    required: true,
+    pattern: /^[a-zA-Z0-9]{5,20}$/,
+    minLength: 5,
+    maxLength: 20,
+  },
   dateOfBirth: {
     required: true,
     custom: (value: string) => {
-      const date = new Date(value);
       const now = new Date();
-      const age = now.getFullYear() - date.getFullYear();
+      const date = parseDateInput(value);
       
-      if (date > now) {
+      if (!date || date > now) {
         return 'Ngày sinh không hợp lệ';
       }
       
+      const age = calculateAgeFromDateString(value, now);
+      if (age === null) {
+        return 'Ngày sinh không hợp lệ';
+      }
+
       if (age < 1) {
         return 'Hành khách phải đủ 1 tuổi';
       }

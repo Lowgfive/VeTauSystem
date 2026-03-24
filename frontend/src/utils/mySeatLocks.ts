@@ -3,6 +3,7 @@
 // This is used as a fallback or complementary to the backend-driven locks
 
 const MY_LOCKS_KEY = 'my_seat_locks';
+export const SEAT_HOLD_TTL_MS = 5 * 60 * 1000;
 
 interface SeatLock {
     scheduleId: string;
@@ -32,13 +33,11 @@ export const removeMyLock = (scheduleId: string, seatId: string) => {
 
 export const isMyLock = (scheduleId: string, seatId: string): boolean => {
     const locks = getMyLocks();
-    // Consider a lock valid for 10 minutes locally
-    const TEN_MINUTES = 10 * 60 * 1000;
     const now = Date.now();
     return locks.some(l => 
         l.scheduleId === scheduleId && 
         l.seatId === seatId && 
-        (now - l.timestamp < TEN_MINUTES)
+        (now - l.timestamp < SEAT_HOLD_TTL_MS)
     );
 };
 

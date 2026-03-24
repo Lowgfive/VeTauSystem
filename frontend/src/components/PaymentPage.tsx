@@ -53,6 +53,18 @@ interface PaymentPageProps {
   bookingData?: BookingDataType | BookingDataType[];
 }
 
+const PENDING_PAYMENT_KEY = 'pending_payment';
+
+const buildBookingSignature = (bookings: BookingDataType[]) =>
+  bookings
+    .map((booking) =>
+      [
+        booking.scheduleId,
+        ...(booking.seats || []).map((seat) => seat.seat_id).sort(),
+      ].join(':')
+    )
+    .join('|');
+
 export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
   const navigate = useNavigate();
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -88,6 +100,26 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
     setIsProcessing(true);
 
     try {
+      const signature = buildBookingSignature(bookings);
+      const pendingRaw = sessionStorage.getItem(PENDING_PAYMENT_KEY);
+
+      if (pendingRaw) {
+        try {
+          const pending = JSON.parse(pendingRaw) as {
+            signature?: string;
+            paymentUrl?: string;
+            bookingIds?: string[];
+          };
+
+          if (pending.signature === signature && pending.paymentUrl) {
+            window.location.href = pending.paymentUrl;
+            return;
+          }
+        } catch {
+          sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+        }
+      }
+
       // 1. Create booking(s) in backend
       const createdIds: string[] = [];
 
@@ -128,11 +160,29 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
 
       const paymentUrl = payRes.data.data.paymentUrl;
 
+      sessionStorage.setItem(
+        PENDING_PAYMENT_KEY,
+        JSON.stringify({
+          signature,
+          bookingIds: createdIds,
+          paymentUrl,
+          txnRef: payRes.data.data.txnRef,
+          createdAt: Date.now(),
+        })
+      );
+
       // 3. Redirect to VNPay
       window.location.href = paymentUrl;
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.");
+      if (err?.response?.status === 409) {
+        toast.error(
+          err?.response?.data?.message ||
+            'Ghế đã hết giữ chỗ hoặc đã được tạo đơn trước đó. Vui lòng quay lại chọn ghế hoặc tiếp tục thanh toán từ lần trước.'
+        );
+      } else {
+        toast.error(err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.");
+      }
       setIsProcessing(false);
     }
   };

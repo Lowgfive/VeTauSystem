@@ -1,27 +1,54 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useCartStore } from "../store/cartStore";
+import { seatService } from "../services/seat.service";
+
+const releaseExpiredLocks = async (scheduleSeats: Array<{ scheduleId: string; seatId: string }>) => {
+    await Promise.all(
+        scheduleSeats.map(({ scheduleId, seatId }) =>
+            seatService.unlockSeat(scheduleId, seatId).catch(() => {})
+        )
+    );
+};
 
 /**
- * Countdown timer for seat hold (10 minutes).
- * Ticks every second and auto-clears the cart when time runs out.
+ * Global cleanup for persisted cart expiration.
+ * - Clears stale persisted cart data after reload
+ * - Best-effort unlocks expired seats on the backend
  */
 export const useCartTimer = () => {
-    const { isTimerRunning, tickTimer } = useCartStore();
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const expiresAt = useCartStore((state) => state.expiresAt);
+    const seats = useCartStore((state) => state.seats);
+    const clearCart = useCartStore((state) => state.clearCart);
+    const clearExpiresAt = useCartStore((state) => state.clearExpiresAt);
 
     useEffect(() => {
-        if (isTimerRunning) {
-            intervalRef.current = setInterval(() => {
-                tickTimer();
-            }, 1000);
-        } else {
-            if (intervalRef.current) clearInterval(intervalRef.current);
+        if (!expiresAt) return;
+
+        const cleanup = async () => {
+            await releaseExpiredLocks(
+                seats
+                    .filter((seat) => seat.scheduleId && seat.seatId)
+                    .map((seat) => ({
+                        scheduleId: seat.scheduleId,
+                        seatId: seat.seatId,
+                    }))
+            );
+            clearCart();
+            clearExpiresAt();
+        };
+
+        const now = Date.now();
+        if (expiresAt <= now) {
+            void cleanup();
+            return;
         }
 
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, [isTimerRunning, tickTimer]);
+        const timeoutId = setTimeout(() => {
+            void cleanup();
+        }, expiresAt - now);
+
+        return () => clearTimeout(timeoutId);
+    }, [expiresAt, seats, clearCart, clearExpiresAt]);
 };
 
 /** Format seconds to MM:SS display */

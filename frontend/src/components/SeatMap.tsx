@@ -17,7 +17,7 @@ import {
 import { seatService, SeatInfo } from '../services/seat.service';
 import { toast } from 'sonner';
 import { getSocket, connectSocket, joinTrainRoom, leaveTrainRoom } from '../config/socket';
-import { addMyLock, removeMyLock, isMyLock, getMyLocks } from '../utils/mySeatLocks';
+import { addMyLock, removeMyLock, isMyLock, getMyLocks, SEAT_HOLD_TTL_MS } from '../utils/mySeatLocks';
 import { useAppSelector } from "../hooks/useRedux";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -184,7 +184,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
              const heldSeats = res.data.seats.filter(s => s.status === 'locked' && isMyLock(scheduleId, s.seatId));
              if (heldSeats.length > 0) {
                  // Gán lại timer tạm 5 phút nếu ko lấy đc từ BE để tránh Timer bị rỗng
-                 const restored = heldSeats.map(s => ({ ...s, expiresAt: Date.now() + 5 * 60 * 1000 }));
+                 const restored = heldSeats.map(s => ({ ...s, expiresAt: Date.now() + SEAT_HOLD_TTL_MS }));
                  onRestoreHeldSeats(restored);
              }
           }
@@ -333,7 +333,7 @@ export function SeatMap({ scheduleId, schedule, selectedSeats, onSeatSelect, onS
         try {
           const response: any = await seatService.lockSeat(scheduleId, seat.seatId, departureStationId, arrivalStationId);
           // Bỏ qua expiresAt của server vì nếu sai lệch múi giờ, client sẽ bị set isExpired = true và tự động xóa khỏi giỏ vé ngay lập tức
-          const seatExpiresAt = Date.now() + 5 * 60 * 1000;
+          const seatExpiresAt = Date.now() + SEAT_HOLD_TTL_MS;
           
           addMyLock(scheduleId, seat.seatId);
           onSeatSelect({ ...seat, expiresAt: seatExpiresAt });
