@@ -159,6 +159,7 @@ export class SearchService {
     );
 
     if (!depStation || !arrStation) {
+      console.log(`[Search] Station not found: dep=${departureStation}, arr=${arrivalStation}`);
       return { trips: [], message: "Khong tim thay ga" };
     }
 
@@ -199,29 +200,39 @@ export class SearchService {
     );
 
     if (orderedRoutes.some((route) => !route)) {
+      console.log(`[Search] Missing route segments for path`);
       return { trips: [], message: "Khong co tuyen tau day du" };
     }
+    console.log(`[Search] Found ${orderedRoutes.length} route segments`);
 
     const routeDocs = orderedRoutes.filter(Boolean);
     const routeIds = routeDocs.map((route) => route!._id.toString());
     const firstRouteId = routeIds[0];
 
     const [y, m, d] = date.split("-").map(Number);
+    // Tạo dayStart và windowEnd theo giờ địa phương của server
     const dayStart = new Date(y, m - 1, d);
-    // Query rộng hơn ngày search để gom đủ các segment cùng chuyến chạy qua đêm.
+    
+    // Mở rộng cửa sổ query về phía trước 1 ngày để bao quát các múi giờ khác nhau
+    // (VD: 2026-03-26 00:00:00+07:00 được lưu là 2026-03-25T17:00:00Z)
+    const queryStart = new Date(dayStart);
+    queryStart.setDate(queryStart.getDate() - 1);
+    
     const windowEnd = new Date(y, m - 1, d + SEARCH_SCHEDULE_DATE_WINDOW_DAYS);
 
     const schedules = await Schedule.find({
       route_id: { $in: routeIds },
-      date: { $gte: dayStart, $lte: windowEnd },
+      date: { $gte: queryStart, $lte: windowEnd },
     })
       .populate("train_id")
       .populate("route_id")
       .lean();
 
     if (!schedules.length) {
+      console.log(`[Search] No schedules found in window for routes`);
       return { trips: [], message: "Khong co chuyen tau" };
     }
+    console.log(`[Search] Found ${schedules.length} schedules in window`);
 
     const trainMap = new Map<string, any[]>();
 
@@ -319,11 +330,15 @@ export class SearchService {
                this.getDateTime(b.date, b.departure_time).getTime();
       });
 
-      // 2. Tìm các chặng khởi đầu (firstLeg) đúng ngày user tìm
-      const searchDateStr = dayStart.toISOString().split("T")[0];
+      // 2. Tìm các chặng khởi đầu (firstLeg) đúng ngày user tìm (so sánh theo local date)
       const potentialFirstLegs = sortedSchedules.filter(s => {
-        const sDateStr = new Date(s.date).toISOString().split("T")[0];
-        return s.route_id?._id?.toString() === firstRouteId && sDateStr === searchDateStr;
+        const sDate = new Date(s.date);
+        const match = 
+          s.route_id?._id?.toString() === firstRouteId &&
+          sDate.getFullYear() === y &&
+          sDate.getMonth() === m - 1 &&
+          sDate.getDate() === d;
+        return match;
       });
 
       for (const firstLeg of potentialFirstLegs) {
@@ -409,6 +424,7 @@ export class SearchService {
     }
 
     if (!results.length) {
+      console.log(`[Search] No valid journeys formed from trains`);
       return { trips: [], message: "Khong co chuyen phu hop" };
     }
 

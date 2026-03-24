@@ -86,7 +86,7 @@ export default function PaymentResultPage() {
                             Thanh toán thất bại
                         </h1>
                         <p className="text-gray-500 mb-6">
-                            Giao dịch không thành công. Vui lòng thử lại.
+                            Giao dịch không thành công: {searchParams.get("message") || "Vui lòng thử lại"}
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
