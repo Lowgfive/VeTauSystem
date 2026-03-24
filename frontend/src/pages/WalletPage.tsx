@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { RootState } from "../store";
 import { updateBalance } from "../store/slices/authSlice";
 import { getBalance, deposit, getTransactions, createDepositPayment } from "../services/wallet.service";
@@ -18,7 +19,8 @@ import {
   Smartphone,
   Banknote,
   Globe,
-  Loader2
+  Loader2,
+  Home
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -39,6 +41,7 @@ interface Transaction {
 const WalletPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,15 +138,25 @@ const WalletPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 mt-1 font-medium">Quản lý số dư và lịch sử giao dịch đường sắt</p>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={() => fetchData(true)} 
-          disabled={refreshing}
-          className="rounded-full shadow-sm hover:shadow-md transition-all gap-2"
-        >
-          <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          Làm mới
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/")}
+            className="rounded-full shadow-sm hover:shadow-md transition-all gap-2"
+          >
+            <Home className="h-4 w-4" />
+            Trang chủ
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => fetchData(true)} 
+            disabled={refreshing}
+            className="rounded-full shadow-sm hover:shadow-md transition-all gap-2"
+          >
+            <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Làm mới
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
