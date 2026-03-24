@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppDispatch } from "../hooks/useRedux";
+import { updateBalance } from "../store/slices/authSlice";
 import { MyBookingsPage } from "../components/MyBookingsPage";
 import { getMyBookings, cancelBooking, downloadTicket } from "../services/booking.service";
 import { Booking } from "../types";
@@ -16,15 +18,19 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { Separator } from "../components/ui/separator";
 
 export default function ManageBookingPageWrapper() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [bookingCodeToCancel, setBookingCodeToCancel] = useState<string | null>(null);
+  const [isChangeAlertOpen, setIsChangeAlertOpen] = useState(false);
+  const [bookingToChange, setBookingToChange] = useState<Booking | null>(null);
 
   const fetchBookings = async () => {
     // Helper to calculate duration between HH:mm times
@@ -116,8 +122,14 @@ export default function ManageBookingPageWrapper() {
       const booking = bookings.find(b => b.bookingCode === code);
       if (!booking) return;
 
-      await cancelBooking(booking.id);
-      toast.success("Hủy vé thành công");
+
+      const res = await cancelBooking(booking.id);
+      
+      if (res.data?.success && res.data.data?.newBalance !== undefined) {
+        dispatch(updateBalance(res.data.data.newBalance));
+      }
+
+      toast.success(res.data?.message || "Hủy vé thành công");
       fetchBookings(); // reload
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Lỗi khi hủy vé");
@@ -125,11 +137,19 @@ export default function ManageBookingPageWrapper() {
   };
 
   const handleChangeTicket = (booking: Booking) => {
-    // Save the booking to be changed in localStorage
-    localStorage.setItem("change_booking_id", booking.id);
-    localStorage.setItem("change_booking_code", booking.bookingCode);
+    setBookingToChange(booking);
+    setIsChangeAlertOpen(true);
+  };
+
+  const handleConfirmedChange = () => {
+    if (!bookingToChange) return;
     
-    toast.info(`Vui lòng chọn chuyến tàu và ghế mới cho vé ${booking.bookingCode}`);
+    // Save the booking to be changed in localStorage
+    localStorage.setItem("change_booking_id", bookingToChange.id);
+    localStorage.setItem("change_booking_code", bookingToChange.bookingCode);
+    
+    setIsChangeAlertOpen(false);
+    toast.info(`Vui lòng chọn chuyến tàu và ghế mới cho vé ${bookingToChange.bookingCode}`);
     navigate("/"); // Redirect to home to search for new train
   };
 
@@ -174,28 +194,129 @@ export default function ManageBookingPageWrapper() {
       />
 
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent className="max-w-md rounded-2xl border-0 shadow-2xl p-0 overflow-hidden">
+        <AlertDialogContent className="max-w-xl rounded-2xl border-0 shadow-2xl p-0 overflow-hidden">
           <div className="bg-red-50 p-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 animate-bounce">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-red-600" />
             </div>
-            <AlertDialogHeader className="space-y-2">
-              <AlertDialogTitle className="text-2xl font-bold text-slate-900">Xác nhận hủy vé?</AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-600">
-                Bạn có chắc chắn muốn hủy vé <span className="font-mono font-bold text-red-600 underline">{bookingCodeToCancel}</span>? 
-                Hành động này <span className="font-semibold text-slate-900">không thể hoàn tác</span> và chỗ ngồi sẽ được giải phóng ngay lập tức.
+            <AlertDialogHeader className="space-y-4">
+              <AlertDialogTitle className="text-2xl font-bold text-slate-900">Xác nhận thao tác vé?</AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-600 text-left">
+                Bạn đang yêu cầu xử lý vé <span className="font-mono font-bold text-red-600 underline">{bookingCodeToCancel}</span>. 
+                Vui lòng lưu ý các quy định sau:
               </AlertDialogDescription>
             </AlertDialogHeader>
+            
+            <div className="mt-6 w-full text-left bg-white p-5 rounded-xl border border-red-100 shadow-sm space-y-4">
+              <div>
+                <h5 className="font-bold text-red-700 flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                  Chính sách hoàn vé (trả vé)
+                </h5>
+                <div className="grid grid-cols-2 gap-4 text-[13px]">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-slate-800 underline">Vé cá nhân:</p>
+                    <ul className="list-disc list-inside text-slate-600">
+                      <li>≥ 24h: Phí 10%</li>
+                      <li>4h - 24h: Phí 20%</li>
+                      <li>{"< 4h"}: Không hoàn</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-slate-800 underline">Vé tập thể:</p>
+                    <ul className="list-disc list-inside text-slate-600">
+                      <li>≥ 72h: Phí 10%</li>
+                      <li>24h - 72h: Phí 20%</li>
+                      <li>{"< 24h"}: Không hoàn</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-slate-100" />
+
+              <div>
+                <h5 className="font-bold text-blue-700 flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                  Chính sách đổi vé
+                </h5>
+                <ul className="text-[13px] text-slate-600 space-y-1">
+                  <li>• Chỉ đổi vé trước giờ chạy <span className="font-bold text-slate-900">≥ 24 giờ</span></li>
+                  <li>• Phí đổi: <span className="font-bold text-slate-900">20.000đ / vé</span></li>
+                  <li>• Không áp dụng cho vé tập thể</li>
+                </ul>
+              </div>
+            </div>
+            
+            <p className="text-[11px] text-slate-400 mt-4 italic">
+              * Tiền hoàn (sau khi trừ phí) sẽ được chuyển trực tiếp vào ví của bạn ngay lập tức.
+            </p>
           </div>
-          <AlertDialogFooter className="p-6 bg-white flex sm:justify-center gap-3">
-            <AlertDialogCancel className="flex-1 h-12 rounded-xl border-2 hover:bg-slate-50 font-bold text-slate-700">
+          <AlertDialogFooter className="p-6 bg-slate-50 flex sm:justify-center gap-3 border-t border-slate-100">
+            <AlertDialogCancel className="flex-1 h-12 rounded-xl border-2 hover:bg-white font-bold text-slate-600 transition-all">
               Quay lại
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmedCancel}
-              className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 font-bold text-white shadow-lg shadow-red-200"
+              className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 font-bold text-white shadow-lg shadow-red-100 transition-all hover:scale-[1.02]"
             >
               Xác nhận hủy
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Ticket Notification */}
+      <AlertDialog open={isChangeAlertOpen} onOpenChange={setIsChangeAlertOpen}>
+        <AlertDialogContent className="max-w-xl rounded-2xl border-0 shadow-2xl p-0 overflow-hidden">
+          <div className="bg-blue-50 p-6 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-blue-600" />
+            </div>
+            <AlertDialogHeader className="space-y-4">
+              <AlertDialogTitle className="text-2xl font-bold text-slate-900 text-center">Quy định đổi vé tàu?</AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-600 text-left">
+                Bạn đang yêu cầu đổi lịch cho vé <span className="font-mono font-bold text-blue-600 underline">{bookingToChange?.bookingCode}</span>. 
+                Vui lòng xác nhận bạn đã hiểu các quy định sau:
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="mt-6 w-full text-left bg-white p-5 rounded-xl border border-blue-100 shadow-sm space-y-4">
+              <div>
+                <h5 className="font-bold text-blue-700 flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                  Quy trình & Phí đổi vé
+                </h5>
+                <ul className="text-[13px] text-slate-600 space-y-3">
+                  <li className="flex gap-2">
+                    <span className="font-bold text-slate-900 whitespace-nowrap">Thời gian:</span>
+                    <span>Chỉ áp dụng đổi vé trước giờ tàu chạy <span className="font-bold text-red-600">≥ 24 giờ</span>.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-bold text-slate-900 whitespace-nowrap">Phí đổi:</span>
+                    <span>Phí cố định <span className="font-bold text-primary">20.000đ / vé</span>.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-bold text-slate-900 whitespace-nowrap">Hạng vé:</span>
+                    <span>Không áp dụng đổi vé cho các loại vé tập thể.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-bold text-slate-900 whitespace-nowrap">Chênh lệch:</span>
+                    <span>Vé mới đắt hơn sẽ trừ thêm tiền từ ví. Vé mới rẻ hơn sẽ được hoàn lại phần thừa vào ví (sau khi trừ phí).</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter className="p-6 bg-slate-50 flex sm:justify-center gap-3 border-t border-slate-100">
+            <AlertDialogCancel className="flex-1 h-12 rounded-xl border-2 hover:bg-white font-bold text-slate-600 transition-all">
+              Bỏ qua
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmedChange}
+              className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-white shadow-lg shadow-blue-100 transition-all hover:scale-[1.02]"
+            >
+              Tiếp tục đổi vé
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

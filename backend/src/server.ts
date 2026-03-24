@@ -1,6 +1,7 @@
 // Load .env FIRST — isolated loader đảm bảo env được load trước mọi import khác
 import "./config/env";
 
+// Force restart to reload .env (updated port)
 import http from "http";
 import app from "./app";
 import { connectDatabase, disconnectDatabase } from "./config/db";

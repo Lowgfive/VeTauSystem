@@ -234,8 +234,8 @@ export default function PassengerInfoPage() {
         })),
         totalPrice: tripTotalPrice,
         scheduleId: sch?.id || sch?._id,
-        departureStationId: sch?.origin?.id,
-        arrivalStationId: sch?.destination?.id,
+        departureStationId: sch?.origin?.id || sch?.departure_station_id || sch?.origin?._id,
+        arrivalStationId: sch?.destination?.id || sch?.arrival_station_id || sch?.destination?._id,
       };
     };
 

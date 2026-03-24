@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
-import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput, VerifyRegisterOtpInput, ResendRegisterOtpInput } from "../schemas/auth.schema";
-import { registerService, loginService, forgotPasswordService, resetPasswordService, verifyRegisterOtpService, resendRegisterOtpService } from "../services/auth.service";
+import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput, VerifyRegisterOtpInput, ResendRegisterOtpInput, GoogleLoginInput } from "../schemas/auth.schema";
+import { registerService, loginService, forgotPasswordService, resetPasswordService, verifyRegisterOtpService, resendRegisterOtpService, googleLoginService } from "../services/auth.service";
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
@@ -90,5 +90,19 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
     res.status(200).json({
         success: true,
         message: "Mật khẩu của bạn đã được cập nhật thành công.",
+    });
+});
+
+// ─── Google Login ─────────────────────────────────────────────────────────────
+// POST /api/v1/auth/google
+export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body as GoogleLoginInput;
+
+    const result = await googleLoginService(body);
+
+    res.status(200).json({
+        success: true,
+        message: "Đăng nhập Google thành công",
+        data: result,
     });
 });

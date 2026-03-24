@@ -18,6 +18,7 @@ import {
   getPassengerDiscountRate,
   validatePassengerTypeAndDob,
 } from "../utils/passenger-pricing";
+import { WalletService } from "../services/wallet.service";
 
 export const createBooking = asyncHandler(
   async (req: AuthRequest, res: Response) => {
@@ -277,11 +278,38 @@ export const createBooking = asyncHandler(
       );
     }
 
-    return res.status(201).json({
-      success: true,
-      message: "Dat cho thanh cong. Vui long thanh toan de hoan tat.",
-      data: { booking, bookingPassengers },
-    });
+    // ─── Handle Wallet Payment ──────────────────────────────────────────────
+    try {
+      const { balance: newBalance } = await WalletService.pay(
+        userId,
+        calculatedTotalAmount,
+        `Thanh toán đơn hàng ${bookingCode}`,
+        booking._id.toString()
+      );
+
+      // Update statuses to paid/confirmed
+      await BookingModel.updateOne({ _id: booking._id }, { status: "paid" });
+      await BookingPassenger.updateMany({ booking_id: booking._id }, { status: "paid" }); // or confirmed
+
+      return res.status(201).json({
+        success: true,
+        message: "Đặt vé và thanh toán thành công qua ví",
+        data: { 
+          booking: { ...booking.toObject(), status: "paid" }, 
+          bookingPassengers,
+          newBalance
+        },
+      });
+    } catch (error: any) {
+      // Rollback: Delete the pending booking and segments
+      await BookingPassenger.deleteMany({ booking_id: booking._id });
+      await BookingModel.deleteOne({ _id: booking._id });
+      
+      return res.status(400).json({
+        success: false,
+        message: error.message || "Lỗi thanh toán qua ví. Vui lòng kiểm tra số dư.",
+      });
+    }
   }
 );
 
@@ -351,7 +379,10 @@ export const getAllBookings = asyncHandler(
       bookings.map(async (booking) => {
         const passengers = await BookingPassenger.find({ booking_id: booking._id })
           .populate("passenger_id")
-          .populate("seat_id");
+          .populate({
+            path: "seat_id",
+            populate: { path: "carriage_id" }
+          });
         return { ...booking, booking_passengers: passengers };
       })
     );

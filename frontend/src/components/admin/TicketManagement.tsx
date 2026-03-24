@@ -44,11 +44,20 @@ export function TicketManagement() {
         const user = booking.user_id || {};
         const schedule = booking.schedule_id || {};
         const train = schedule.train_id || {};
-        const route = schedule.route_id || {};
-        const departureStation = route.departure_station_id || {};
-        const arrivalStation = route.arrival_station_id || {};
-        const seat = booking.seat_id || {};
-        const carriage = seat.carriage_id || {};
+        
+        // Lấy ga cụ thể từ Booking thay vì từ Route chung của tàu
+        const depStation = booking.departure_station_id || {};
+        const arrStation = booking.arrival_station_id || {};
+        
+        const passengers = booking.booking_passengers || [];
+        
+        // Gom danh sách ghế và loại ghế
+        const seatNumbers = passengers.map((p: any) => p.seat_id?.seat_number || 'N/A').join(', ');
+        const seatTypes = Array.from(new Set(passengers.map((p: any) => {
+          const s = p.seat_id || {};
+          const c = s.carriage_id || {};
+          return c.seat_type || s.seat_type || 'N/A';
+        }))).join(', ');
 
         // Format date
         const departureDate = schedule.date
@@ -77,14 +86,14 @@ export function TicketManagement() {
           phone: user.phone || 'N/A',
           email: user.email || 'N/A',
           trainCode: train.train_code || train.train_name || 'N/A',
-          route: `${departureStation.station_name || 'N/A'} → ${arrivalStation.station_name || 'N/A'}`,
+          route: `${depStation.station_name || 'N/A'} → ${arrStation.station_name || 'N/A'}`,
           departureDate: departureDate,
           departureTime: schedule.departure_time || 'N/A',
-          seatNumber: seat.seat_number || 'N/A',
-          seatType: carriage.seat_type || seat.seat_type || 'N/A',
-          price: booking.price || 0,
+          seatNumber: seatNumbers || 'N/A',
+          seatType: seatTypes || 'N/A',
+          price: booking.total_amount || 0,
           status: status,
-          paymentMethod: booking.status === 'paid' ? 'VNPay' : 'Chưa thanh toán',
+          paymentMethod: booking.status === 'paid' ? 'Ví điện tử/VNPay' : 'Chưa thanh toán',
           bookingDate: bookingDate,
         };
       });
@@ -465,10 +474,6 @@ export function TicketManagement() {
                     <div>
                       <p className="text-sm text-muted-foreground">Trạng thái</p>
                       <div className="mt-1">{getStatusBadge(selectedTicket.status)}</div>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Thanh toán</p>
-                      <p className="font-medium">{selectedTicket.paymentMethod}</p>
                     </div>
                   </div>
                 </div>

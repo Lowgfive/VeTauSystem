@@ -11,6 +11,8 @@ import {
   getPassengerDiscountRate,
   validatePassengerTypeAndDob,
 } from "../utils/passenger-pricing";
+import { calculateRefund, canChangeTicket } from "../utils/policy";
+import { WalletService } from "../services/wallet.service";
 
 const generateBookingCode = (): string => {
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -70,8 +72,8 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
     const { schedule_id, seat_id } = req.body;
     const userId = req.user?.userId;
 
-    if (!schedule_id || !seat_id) {
-        return res.status(400).json({ success: false, message: "Thiếu schedule_id hoặc seat_id" });
+    if (!schedule_id || !seat_id || !userId) {
+        return res.status(400).json({ success: false, message: "Thiếu schedule_id, seat_id hoặc người dùng" });
     }
 
     // Find the seat and check availability
@@ -133,80 +135,155 @@ export const bookTicket = asyncHandler(async (req: AuthRequest, res: Response) =
         status: "reserved"
     });
 
-    // Mark seat as physically booked
-    seat.status = "booked";
-    await seat.save();
+    // ─── Handle Wallet Payment ──────────────────────────────────────────────
+    try {
+        await WalletService.pay(
+            userId as string,
+            fareDetails.total_fare,
+            `Thanh toán vé ${booking.booking_code || "mới"}`,
+            booking._id.toString()
+        );
+        
+        // Update booking and passenger status to paid/confirmed
+        await BookingModel.updateOne({ _id: booking._id }, { status: "paid" });
+        await BookingPassenger.updateOne({ _id: bp._id }, { status: "confirmed" });
+        
+        // Mark seat as physically booked
+        seat.status = "booked";
+        await seat.save();
 
-    res.status(201).json({
-        success: true,
-        message: "Đặt vé thành công",
-        data: { booking, bp },
-    });
+        res.status(201).json({
+            success: true,
+            message: "Đặt vé và thanh toán thành công qua ví",
+            data: { 
+                booking: { ...booking.toObject(), status: "paid" }, 
+                bp: { ...bp.toObject(), status: "confirmed" } 
+            },
+        });
+    } catch (error: any) {
+        // Rollback: Delete created records and keep seat available
+        await BookingPassenger.deleteOne({ _id: bp._id });
+        await BookingModel.deleteOne({ _id: booking._id });
+        
+        return res.status(400).json({ 
+            success: false, 
+            message: error.message || "Lỗi thanh toán qua ví. Vui lòng nạp thêm tiền." 
+        });
+    }
 });
 
 export const refundTicket = asyncHandler(async (req: AuthRequest, res: Response) => {
-    // Both req.params.bookingId and req.body.bookingId are accepted
     const bookingId = req.params.bookingId || req.body.bookingId;
     const userId = req.user?.userId;
 
-    if (!bookingId) {
-        return res.status(400).json({ success: false, message: "Không tìm thấy mã đặt vé" });
+    if (!bookingId || !userId) {
+        return res.status(400).json({ success: false, message: "Không tìm thấy mã đặt vé hoặc người dùng" });
     }
 
-    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId });
+    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId }).populate("schedule_id");
     if (!booking) {
         return res.status(404).json({ success: false, message: "Không tìm thấy vé" });
     }
 
-    // If pending or confirmed, allow refund
     if (!["confirmed", "pending", "reserved", "paid"].includes(booking.status)) {
         return res.status(400).json({ success: false, message: "Vé không thể hoàn trả (trạng thái không hợp lệ)" });
     }
 
-    // Find all mapping
+    const schedule = booking.schedule_id as any;
+    if (!schedule) {
+        return res.status(400).json({ success: false, message: "Không tìm thấy thông tin lịch trình để tính phí hoàn" });
+    }
+
+    // 1. Calculate refund based on policy
+    const { refundAmount, feeAmount, percent } = calculateRefund(
+        schedule.date,
+        schedule.departure_time,
+        booking.total_amount,
+        booking.is_group_booking
+    );
+
+    if (refundAmount === 0 && percent === 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Thời gian trả vé sát giờ chạy (dưới 4h hoặc 24h đối với tập thể), không hỗ trợ hoàn tiền theo quy định." 
+        });
+    }
+
+    let newBalance = 0;
+    try {
+        const result = await WalletService.refund(
+            userId,
+            refundAmount,
+            `Hoàn tiền vé ${booking.booking_code} (Khấu trừ phí ${feeAmount.toLocaleString()}đ - ${100 - percent}%)`,
+            booking._id.toString()
+        );
+        newBalance = result.balance || 0;
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: "Lỗi khi hoàn tiền vào ví: " + error.message });
+    }
+
     const bps = await BookingPassenger.find({ booking_id: booking._id });
     const seatIds = bps.map((bp: any) => bp.seat_id);
 
-    // Free the seat
     if (seatIds.length > 0) {
         await Seat.updateMany({ _id: { $in: seatIds } }, { status: "available" });
     }
 
-    // Update mappings status
     await BookingPassenger.updateMany({ booking_id: booking._id }, { status: "refunded" });
-
-    // Update booking status
-    // Update booking status using updateOne to bypass validation of missing required fields on legacy records
     await BookingModel.updateOne({ _id: booking._id }, { status: "refunded" });
     booking.status = "refunded";
 
     res.status(200).json({
         success: true,
-        message: "Hủy vé thành công",
-        data: booking,
+        message: `Hủy vé thành công. Số tiền ${refundAmount.toLocaleString()}đ đã được hoàn vào ví.`,
+        data: {
+            booking,
+            refundAmount,
+            feeAmount,
+            refundPercent: percent,
+            newBalance
+        },
     });
 });
 
 export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { bookingId } = req.params;
-    const { new_schedule_id, new_seat_ids } = req.body; // Changed to new_seat_ids (array)
+    const { new_schedule_id, new_seat_ids } = req.body;
     const userId = req.user?.userId;
 
-    if (!new_schedule_id || !new_seat_ids || !Array.isArray(new_seat_ids) || new_seat_ids.length === 0) {
-        return res.status(400).json({ success: false, message: "Thiếu new_schedule_id hoặc danh sách new_seat_ids" });
+    if (!new_schedule_id || !new_seat_ids || !Array.isArray(new_seat_ids) || new_seat_ids.length === 0 || !userId) {
+        return res.status(400).json({ success: false, message: "Thiếu dữ liệu yêu cầu" });
     }
 
-    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId });
+    const booking = await BookingModel.findOne({ _id: bookingId, user_id: userId }).populate("schedule_id");
     if (!booking) {
         return res.status(404).json({ success: false, message: "Không tìm thấy vé" });
     }
 
-    // Allow changing if confirmed/paid
     if (!["confirmed", "paid"].includes(booking.status)) {
         return res.status(400).json({ success: false, message: "Vé không thể đổi lịch (trạng thái không hợp lệ)" });
     }
 
-    // Check all new seats availability
+    const oldSchedule = booking.schedule_id as any;
+    const newSchedule = await Schedule.findById(new_schedule_id);
+    if (!oldSchedule || !newSchedule) {
+        return res.status(404).json({ success: false, message: "Thông tin lịch trình không hợp lệ" });
+    }
+
+    // 1. Check change policy (time limit and fee)
+    const changeCheck = canChangeTicket(
+        oldSchedule.date,
+        oldSchedule.departure_time,
+        booking.is_group_booking
+    );
+
+    if (!changeCheck.allowed) {
+        return res.status(400).json({ success: false, message: changeCheck.reason });
+    }
+
+    const changeFee = (changeCheck.fee || 0) * new_seat_ids.length;
+
+    // 2. Check new seats availability and calculate new total
     const newSeats = await Seat.find({ _id: { $in: new_seat_ids } });
     if (newSeats.length !== new_seat_ids.length) {
         return res.status(404).json({ success: false, message: "Một số ghế mới không tìm thấy" });
@@ -220,15 +297,49 @@ export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Respons
         });
     }
 
-    // Handle bps logic - swap old seats for new seats
+    const newTotalAmount = newSeats.reduce((sum, s) => sum + (s.price ?? 0), 0);
+    const priceDifference = newTotalAmount - booking.total_amount;
+    const totalToPay = priceDifference + changeFee;
+
+    let newBalance = 0;
+    try {
+        if (totalToPay > 0) {
+            // User needs to pay more (price increase + fee)
+            const result = await WalletService.pay(
+                userId,
+                totalToPay,
+                `Thanh toán chênh lệch đổi vé và phí (${changeFee.toLocaleString()}đ) cho vé ${booking.booking_code}`,
+                booking._id.toString()
+            );
+            newBalance = result.balance;
+        } else if (totalToPay < 0) {
+            // Refund the difference (price decrease - fee)
+            const result = await WalletService.refund(
+                userId,
+                Math.abs(totalToPay),
+                `Hoàn tiền chênh lệch đổi vé (khấu trừ phí ${changeFee.toLocaleString()}đ) cho vé ${booking.booking_code}`,
+                booking._id.toString()
+            );
+            newBalance = result.balance || 0;
+        } else if (changeFee > 0) {
+            // Price is same, but fee still applies
+            const result = await WalletService.pay(
+                userId,
+                changeFee,
+                `Thanh toán phí đổi vé (${changeFee.toLocaleString()}đ) cho vé ${booking.booking_code}`,
+                booking._id.toString()
+            );
+            newBalance = result.balance;
+        }
+    } catch (error: any) {
+        return res.status(400).json({ success: false, message: error.message || "Lỗi giao dịch ví" });
+    }
+
+    // 4. Update seats and booking
     const bps = await BookingPassenger.find({ booking_id: booking._id });
     const oldSeatIds = bps.map(bp => bp.seat_id);
-    
-    // Free old seats
     await Seat.updateMany({ _id: { $in: oldSeatIds } }, { status: "available" });
 
-    // Map new seats to existing passengers (or as many as we have)
-    // For simplicity, we assume the user selected the same number of seats or we handle the mismatch
     for (let i = 0; i < bps.length; i++) {
         if (new_seat_ids[i]) {
             const newSeatData = newSeats.find(s => s._id.toString() === new_seat_ids[i].toString());
@@ -239,17 +350,13 @@ export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Respons
         }
     }
 
-    // Book new seats
     await Seat.updateMany({ _id: { $in: new_seat_ids } }, { status: "booked" });
 
-    // Update booking
-    const totalAmount = newSeats.reduce((sum, s) => sum + (s.price ?? 0), 0);
-    // Update booking using updateOne to bypass validation of missing required fields on legacy records
     await BookingModel.updateOne(
         { _id: booking._id },
         {
             schedule_id: new mongoose.Types.ObjectId(new_schedule_id),
-            total_amount: totalAmount,
+            total_amount: newTotalAmount,
             status: "changed"
         }
     );
@@ -257,7 +364,13 @@ export const changeSchedule = asyncHandler(async (req: AuthRequest, res: Respons
 
     res.status(200).json({
         success: true,
-        message: "Đổi lịch thành công",
-        data: booking,
+        message: `Đổi lịch thành công. ${totalToPay > 0 ? `Đã trừ ${totalToPay.toLocaleString()}đ từ ví.` : totalToPay < 0 ? `Đã hoàn ${Math.abs(totalToPay).toLocaleString()}đ vào ví.` : `Đã trừ phí ${changeFee.toLocaleString()}đ từ ví.`}`,
+        data: {
+            booking,
+            priceDifference,
+            changeFee,
+            totalToPay,
+            newBalance
+        },
     });
 });

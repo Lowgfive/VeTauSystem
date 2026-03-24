@@ -20,9 +20,13 @@ export default function PaymentResultPage() {
             clearCart();
             sessionStorage.removeItem(PENDING_PAYMENT_KEY);
             toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
-            // Đưa về home sau một chút để user kịp thấy popup thành công
+            // Đưa về home hoặc wallet sau một chút
             setTimeout(() => {
-                window.location.href = "/";
+                if (txnRef.startsWith("DEP")) {
+                    navigate("/wallet");
+                } else {
+                    navigate("/");
+                }
             }, 1500);
         } else if (status === "failed" || status === "error") {
             sessionStorage.removeItem(PENDING_PAYMENT_KEY);
@@ -37,7 +41,7 @@ export default function PaymentResultPage() {
                     <h1 className="text-2xl font-bold text-green-600 mb-2">
                         Thanh toán thành công!
                     </h1>
-                    <p className="text-gray-500 mb-6">Đang chuyển hướng về trang chủ...</p>
+                    <p className="text-gray-500 mb-6">Đang chuyển hướng về {txnRef.startsWith("DEP") ? "Ví của bạn" : "trang chủ"}...</p>
                     <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
             </div>
@@ -58,14 +62,14 @@ export default function PaymentResultPage() {
                             <span className="font-bold text-blue-600">{txnRef}</span>
                         </p>
                         <p className="text-sm text-gray-400 mb-6">
-                            Vé điện tử đã được xác nhận. Vui lòng kiểm tra lịch sử vé của bạn.
+                            {txnRef.startsWith("DEP") ? "Tiền đã được cộng vào ví của bạn." : "Vé điện tử đã được xác nhận. Vui lòng kiểm tra lịch sử vé của bạn."}
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={() => navigate("/manage")}
+                                onClick={() => navigate(txnRef.startsWith("DEP") ? "/wallet" : "/manage")}
                                 className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
                             >
-                                Xem vé của tôi
+                                {txnRef.startsWith("DEP") ? "Xem ví của tôi" : "Xem vé của tôi"}
                             </button>
                             <button
                                 onClick={() => navigate("/")}

@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Plus,
   Minus,
+  Wallet,
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -232,12 +233,21 @@ export function Homepage({
                 Vé của tôi
               </a>
               {isLoggedIn && (
-                <a
-                  href="/profile"
-                  className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
-                >
-                  Hồ sơ
-                </a>
+                <>
+                  <a
+                    href="/profile"
+                    className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer"
+                  >
+                    Hồ sơ
+                  </a>
+                  <a
+                    href="/wallet"
+                    className="px-4 py-2 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-transparent hover:border-white/30 cursor-pointer flex items-center gap-2"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Ví của tôi
+                  </a>
+                </>
               )}
               <a
                 href="#"
@@ -338,17 +348,18 @@ export function Homepage({
                 </a>
                 {isLoggedIn && (
                   <a
-                    href="/profile"
-                    className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
+                    href="/wallet"
+                    className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer flex items-center gap-2"
                   >
-                    Hồ sơ
+                    <Wallet className="w-4 h-4" />
+                    Ví của tôi
                   </a>
                 )}
                 <a
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    onNavigateToSupport();
+                    onNavigateToSupport?.();
                   }}
                   className="text-sm font-medium hover:text-white/80 transition-colors py-2 cursor-pointer"
                 >

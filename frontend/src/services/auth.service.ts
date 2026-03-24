@@ -23,4 +23,15 @@ export const authService = {
             throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.");
         }
     },
+    googleLogin: async (token: string) => {
+        try {
+            const response = await api.post("/auth/google", { token });
+            return response.data;
+        } catch (error: any) {
+            if (error.response) {
+                throw new Error(error.response.data.message || "Lỗi đăng nhập Google");
+            }
+            throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.");
+        }
+    },
 };

@@ -8,6 +8,7 @@ export interface IBooking extends Document {
     booking_code?: string;
     total_amount: number;
     status: "pending" | "confirmed" | "cancelled" | "refunded" | "changed" | "paid";
+    is_group_booking?: boolean;
     payment_txn_ref?: string;
     createdAt: Date;
     updatedAt: Date;
@@ -48,6 +49,10 @@ const BookingSchema = new Schema<IBooking>(
             type: String,
             enum: ["pending", "confirmed", "cancelled", "refunded", "changed", "paid"],
             default: "pending",
+        },
+        is_group_booking: {
+            type: Boolean,
+            default: false,
         },
         payment_txn_ref: {
             type: String,

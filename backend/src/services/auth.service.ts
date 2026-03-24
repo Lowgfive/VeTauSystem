@@ -1,7 +1,9 @@
 import bcrypt from "bcrypt";
+import axios from "axios";
 import UserModel from "../models/user.model";
 import { signAccessToken } from "../utils/jwt";
-import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput, VerifyRegisterOtpInput, ResendRegisterOtpInput } from "../schemas/auth.schema";
+import { OAuth2Client } from "google-auth-library";
+import type { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput, VerifyRegisterOtpInput, ResendRegisterOtpInput, GoogleLoginInput } from "../schemas/auth.schema";
 import type { UserResponse, LoginResponse, RegisterResponse } from "../types/auth.type";
 import { sendRegisterOtpEmail, sendResetPasswordEmail, sendPasswordChangedEmail } from "./emailService";
 import { signResetPasswordToken, verifyResetPasswordToken } from "../utils/jwt";
@@ -9,6 +11,7 @@ import { signResetPasswordToken, verifyResetPasswordToken } from "../utils/jwt";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SALT_ROUNDS = 10;
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ─── Helper: map Mongoose doc → UserResponse (no password) ───────────────────
 
@@ -240,4 +243,59 @@ export const resetPasswordService = async (data: ResetPasswordInput, clientUrl: 
         name: user.name,
         clientUrl,
     });
+};
+
+// ─── Google Login ─────────────────────────────────────────────────────────────
+
+export const googleLoginService = async (data: GoogleLoginInput): Promise<LoginResponse> => {
+    const { token } = data;
+
+    try {
+        // Fetch user info from Google API using access_token
+        const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const payload = googleResponse.data;
+        if (!payload || !payload.email) {
+            throw new Error("Không thể lấy thông tin người dùng từ Google");
+        }
+
+        const { email, name, sub: googleId } = payload;
+
+        let user = await UserModel.findOne({ email });
+
+        if (!user) {
+            // Create new user if not exists
+            user = await UserModel.create({
+                email,
+                name: name || email.split("@")[0],
+                googleId,
+                isVerified: true,
+                password: await bcrypt.hash(Math.random().toString(36).slice(-10), SALT_ROUNDS),
+            });
+        } else if (!user.googleId) {
+            // Link Google account to existing user
+            user.googleId = googleId;
+            user.isVerified = true;
+            await user.save();
+        }
+
+        const accessToken = signAccessToken({
+            userId: (user._id as unknown as string).toString(),
+            role: user.role,
+        });
+
+        return {
+            token: accessToken,
+            user: toUserResponse(user),
+        };
+    } catch (err) {
+        console.error("Google Auth Error:", err);
+        const error = new Error("Xác thực Google không thành công") as Error & { statusCode: number };
+        error.statusCode = 401;
+        throw error;
+    }
 };

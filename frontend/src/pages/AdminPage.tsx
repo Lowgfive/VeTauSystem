@@ -8,11 +8,18 @@ import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 
 
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../hooks/useRedux';
+import { logout } from '../store/slices/authSlice';
+
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
+    const dispatch = useAppDispatch();
+    const navigate = useNavigate();
 
     const handleLogout = () => {
-        // Implement logout logic
+        dispatch(logout());
+        navigate('/login');
     };
 
     const renderContent = () => {

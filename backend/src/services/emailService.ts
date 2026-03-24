@@ -180,10 +180,10 @@ export const sendRegisterOtpEmail = async ({
     `;
 
     try {
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.NODE_ENV !== "production") {
             console.log(`\n==================================================`);
             console.log(`🟢 [DEV MODE] OTP for ${to}: ${otp}`);
-            console.log(`⚠️ EMAIL_USER/PASS not configured. Skipping email send.`);
+            console.log(`⚠️ Email sending bypassed (Dev mode or missing config)`);
             console.log(`==================================================\n`);
             return;
         }
