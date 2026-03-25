@@ -179,7 +179,7 @@ export default class ScheduleService {
     let arrOrder: number | undefined;
     const baseSeatMap = await getSeatsByTrain(trainId);
     if (!baseSeatMap || !baseSeatMap.seatsByCarriage) {
-      return { scheduleId: id, trainId, depOrder, arrOrder, seats: [] };
+      return { scheduleId: id, trainId, depOrder, arrOrder, seats: [], carriages: [] };
     }
 
     const allSeats: any[] = Object.values(baseSeatMap.seatsByCarriage || {}).flat();
@@ -300,6 +300,6 @@ export default class ScheduleService {
       };
     });
 
-    return { scheduleId: id, trainId, depOrder, arrOrder, seats };
+    return { scheduleId: id, trainId, depOrder, arrOrder, seats, carriages: baseSeatMap.carriages };
   }
 }

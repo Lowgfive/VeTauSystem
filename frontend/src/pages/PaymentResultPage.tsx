@@ -2,8 +2,15 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../store/cartStore";
 import { toast } from "sonner";
+import { clearMyLocks } from "../utils/mySeatLocks";
 
 const PENDING_PAYMENT_KEY = 'pending_payment';
+const CART_KEYS_TO_CLEAR = [
+    'selectedDeparture',
+    'selectedReturn',
+    'outboundSeats',
+    'returnSeats',
+];
 
 export default function PaymentResultPage() {
     const [searchParams] = useSearchParams();
@@ -19,6 +26,8 @@ export default function PaymentResultPage() {
         if (isSuccess) {
             clearCart();
             sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+            CART_KEYS_TO_CLEAR.forEach((key) => sessionStorage.removeItem(key));
+            clearMyLocks();
             toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
             // Đưa về home hoặc wallet sau một chút
             setTimeout(() => {
@@ -31,7 +40,13 @@ export default function PaymentResultPage() {
         } else if (status === "failed" || status === "error") {
             sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         }
-    }, [isSuccess, status, clearCart, txnRef]);
+    }, [isSuccess, status, clearCart, txnRef, navigate]);
+            toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
+            // Đưa về home
+            navigate("/");
+        }
+    }, [isSuccess, clearCart, navigate, txnRef]);
+
 
     if (isSuccess) {
         return (

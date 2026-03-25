@@ -58,6 +58,7 @@ interface PaymentPageProps {
 }
 
 const PENDING_PAYMENT_KEY = 'pending_payment';
+const PAYMENT_RETURN_NOTICE_KEY = "payment_return_notice";
 
 const buildBookingSignature = (bookings: BookingDataType[]) =>
   bookings
@@ -89,6 +90,12 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "N/A";
     return d.toLocaleDateString("vi-VN");
+  };
+
+  const handleCancelPayment = () => {
+    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+    sessionStorage.setItem(PAYMENT_RETURN_NOTICE_KEY, "1");
+    onBack();
   };
 
   const handlePayment = async () => {
@@ -180,15 +187,23 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors font-medium"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Quay lại
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">Thanh toán</h1>
+          </div>
           <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors font-medium"
+            onClick={handleCancelPayment}
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Quay lại
+            Hủy thanh toán
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Thanh toán</h1>
         </div>
       </header>
 

@@ -81,10 +81,24 @@ const SeatSelection: React.FC = () => {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const selectedSeatsRef = useRef<SeatInfo[]>([]);
+  const recentlyUnlockedSeatsRef = useRef<Map<string, number>>(new Map());
+  const preserveLocksOnUnmountRef = useRef(false);
+
+  const RECENT_UNLOCK_WINDOW_MS = 2000;
 
   useEffect(() => {
     selectedSeatsRef.current = selectedSeats;
   }, [selectedSeats]);
+
+  useEffect(() => {
+    return () => {
+      if (preserveLocksOnUnmountRef.current || !scheduleId) return;
+
+      selectedSeatsRef.current.forEach((seat) => {
+        void seatService.unlockSeat(scheduleId, seat.seatId).catch(() => {});
+      });
+    };
+  }, [scheduleId]);
 
   useEffect(() => {
     if (!scheduleId) return;
@@ -122,6 +136,18 @@ const SeatSelection: React.FC = () => {
       data.trainId === trainId &&
       rangesOverlap(journeyRange.depOrder, journeyRange.arrOrder, data.depOrder, data.arrOrder);
 
+    const isRecentlyUnlocked = (seatId: string) => {
+      const unlockedAt = recentlyUnlockedSeatsRef.current.get(seatId);
+      if (!unlockedAt) return false;
+
+      if (Date.now() - unlockedAt > RECENT_UNLOCK_WINDOW_MS) {
+        recentlyUnlockedSeatsRef.current.delete(seatId);
+        return false;
+      }
+
+      return true;
+    };
+
     const handleSeatUnlocked = async (data: SeatSocketEvent) => {
       if (!shouldApplySeatEvent(data)) return;
 
@@ -133,6 +159,9 @@ const SeatSelection: React.FC = () => {
             arrOrder: response.data.arrOrder ?? journeyRange.arrOrder,
           });
           setSeats(response.data.seats);
+          if (selectedSeatsRef.current.some((seat) => seat.seatId === data.seatId)) {
+            setSelectedSeats((prev) => prev.filter((seat) => seat.seatId !== data.seatId));
+          }
         }
       } catch (error) {
         console.error('Failed to refresh seats after unlock event:', error);
@@ -141,6 +170,7 @@ const SeatSelection: React.FC = () => {
 
     const handleSeatLocked = (data: SeatSocketEvent) => {
       if (!shouldApplySeatEvent(data)) return;
+      if (isRecentlyUnlocked(data.seatId)) return;
 
       setSeats((prev) =>
         prev.map((seat) => (seat.seatId === data.seatId ? { ...seat, status: 'locked' } : seat))
@@ -264,10 +294,12 @@ const SeatSelection: React.FC = () => {
       if (isSelected) {
         try {
           setProcessingId(seat.seatId);
+          recentlyUnlockedSeatsRef.current.set(seat.seatId, Date.now());
           await seatService.unlockSeat(scheduleId, seat.seatId);
           setSelectedSeats((prev) => prev.filter((selectedSeat) => selectedSeat.seatId !== seat.seatId));
           toast.success(`Đã bỏ chọn ghế ${seat.seatNumber}`);
         } catch (error: any) {
+          recentlyUnlockedSeatsRef.current.delete(seat.seatId);
           toast.error(`Lỗi khi bỏ chọn ghế: ${error.message}`);
         } finally {
           setProcessingId(null);
@@ -360,6 +392,7 @@ const SeatSelection: React.FC = () => {
       return;
     }
 
+    preserveLocksOnUnmountRef.current = true;
     navigate(`/booking/passenger-info/${scheduleId}`, {
       state: {
         ...location.state,

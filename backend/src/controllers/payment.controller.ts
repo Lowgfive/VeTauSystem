@@ -171,7 +171,9 @@ export class PaymentController {
       }
 
       return res.redirect(
+
         `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=success&txnRef=${txnRef}`
+
       );
     } else {
       // Payment failed

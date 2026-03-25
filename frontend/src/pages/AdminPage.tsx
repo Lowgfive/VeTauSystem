@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../store/slices/authSlice';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { TrainManagement } from '../components/admin/TrainManagement';
 
@@ -15,6 +18,9 @@ import { logout } from '../store/slices/authSlice';
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+
+    const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const handleLogout = () => {
