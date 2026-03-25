@@ -76,6 +76,12 @@ export const resetPasswordSchema = z.object({
         .max(100, "Mật khẩu tối đa 100 ký tự"),
 });
 
+// ─── Google Login Schema ──────────────────────────────────────────────────────
+
+export const googleLoginSchema = z.object({
+    token: z.string().min(1, "Token không hợp lệ"),
+});
+
 // ─── Inferred TypeScript Types ────────────────────────────────────────────────
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -84,3 +90,4 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyRegisterOtpInput = z.infer<typeof verifyRegisterOtpSchema>;
 export type ResendRegisterOtpInput = z.infer<typeof resendRegisterOtpSchema>;
+export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;

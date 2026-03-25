@@ -98,12 +98,16 @@ export class SearchService {
   ): string {
     const [hours, minutes] = departureTime.split(":").map(Number);
     const totalMinutes = hours * 60 + minutes + Math.round(durationHours * 60);
-    const newHours = Math.floor(totalMinutes / 60) % 24;
-    const newMinutes = totalMinutes % 60;
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  }
 
-    return `${newHours.toString().padStart(2, "0")}:${newMinutes
-      .toString()
-      .padStart(2, "0")}`;
+  private static getDateTime(date: Date | string, timeStr: string): Date {
+    const d = new Date(date);
+    const [h, m] = timeStr.split(":").map(Number);
+    d.setHours(h, m, 0, 0);
+    return d;
   }
 
   private static isJourneyOverlapping(
@@ -155,6 +159,7 @@ export class SearchService {
     );
 
     if (!depStation || !arrStation) {
+      console.log(`[Search] Station not found: dep=${departureStation}, arr=${arrivalStation}`);
       return { trips: [], message: "Khong tim thay ga" };
     }
 
@@ -195,29 +200,39 @@ export class SearchService {
     );
 
     if (orderedRoutes.some((route) => !route)) {
+      console.log(`[Search] Missing route segments for path`);
       return { trips: [], message: "Khong co tuyen tau day du" };
     }
+    console.log(`[Search] Found ${orderedRoutes.length} route segments`);
 
     const routeDocs = orderedRoutes.filter(Boolean);
     const routeIds = routeDocs.map((route) => route!._id.toString());
     const firstRouteId = routeIds[0];
 
     const [y, m, d] = date.split("-").map(Number);
+    // Tạo dayStart và windowEnd theo giờ địa phương của server
     const dayStart = new Date(y, m - 1, d);
-    // Query rộng hơn ngày search để gom đủ các segment cùng chuyến chạy qua đêm.
+    
+    // Mở rộng cửa sổ query về phía trước 1 ngày để bao quát các múi giờ khác nhau
+    // (VD: 2026-03-26 00:00:00+07:00 được lưu là 2026-03-25T17:00:00Z)
+    const queryStart = new Date(dayStart);
+    queryStart.setDate(queryStart.getDate() - 1);
+    
     const windowEnd = new Date(y, m - 1, d + SEARCH_SCHEDULE_DATE_WINDOW_DAYS);
 
     const schedules = await Schedule.find({
       route_id: { $in: routeIds },
-      date: { $gte: dayStart, $lte: windowEnd },
+      date: { $gte: queryStart, $lte: windowEnd },
     })
       .populate("train_id")
       .populate("route_id")
       .lean();
 
     if (!schedules.length) {
+      console.log(`[Search] No schedules found in window for routes`);
       return { trips: [], message: "Khong co chuyen tau" };
     }
+    console.log(`[Search] Found ${schedules.length} schedules in window`);
 
     const trainMap = new Map<string, any[]>();
 
@@ -301,78 +316,115 @@ export class SearchService {
     const results: TrainResult[] = [];
 
     for (const [trainId, trainSchedules] of trainMap.entries()) {
-      const covered = new Set(
-        trainSchedules.map((schedule) => schedule.route_id?._id?.toString())
-      );
+      // 1. Kiểm tra hướng tàu (forward=1, backward=-1)
+      const sample = trainSchedules[0];
+      const trainObj = sample.train_id as any;
+      if (trainObj?.direction) {
+        const trainDir = trainObj.direction === "forward" ? 1 : -1;
+        if (trainDir !== direction) continue;
+      }
+      
+      // Sắp xếp tất cả schedule của tàu này theo thời gian thực tế
+      const sortedSchedules = [...trainSchedules].sort((a, b) => {
+        return this.getDateTime(a.date, a.departure_time).getTime() - 
+               this.getDateTime(b.date, b.departure_time).getTime();
+      });
 
-      if (covered.size !== routeIds.length) continue;
+      // 2. Tìm các chặng khởi đầu (firstLeg) đúng ngày user tìm (so sánh theo local date)
+      const potentialFirstLegs = sortedSchedules.filter(s => {
+        const sDate = new Date(s.date);
+        const match = 
+          s.route_id?._id?.toString() === firstRouteId &&
+          sDate.getFullYear() === y &&
+          sDate.getMonth() === m - 1 &&
+          sDate.getDate() === d;
+        return match;
+      });
 
-      const firstLeg = trainSchedules.find(
-        (schedule) =>
-          schedule.route_id?._id?.toString() === firstRouteId &&
-          new Date(schedule.date).toDateString() === dayStart.toDateString()
-      );
+      for (const firstLeg of potentialFirstLegs) {
+        const currentJourney: any[] = [firstLeg];
+        let lastArrival = this.getDateTime(firstLeg.date, firstLeg.arrival_time);
 
-      if (!firstLeg) continue;
+        // Tìm các chặng tiếp theo nối tiếp nhau
+        let foundFullJourney = true;
+        for (let i = 1; i < routeIds.length; i++) {
+          const targetRouteId = routeIds[i];
+          
+          // Chặng tiếp theo phải là targetRouteId và khởi hành SAU HOẶC BẰNG khi chặng trước đến
+          const nextLeg = sortedSchedules.find(s => 
+            s.route_id?._id?.toString() === targetRouteId &&
+            this.getDateTime(s.date, s.departure_time) >= lastArrival
+          );
 
-      const train = firstLeg.train_id;
-      const capacity = train.capacity || 100;
-      const occupiedSeatIds = new Set<string>();
-
-      for (const schedule of trainSchedules) {
-        const bookingEntries = bookingMap.get(schedule._id.toString()) || [];
-
-        for (const bookingEntry of bookingEntries) {
-          if (
-            bookingEntry.depOrder == null ||
-            bookingEntry.arrOrder == null ||
-            !this.isJourneyOverlapping(
-              depStation.station_order,
-              arrStation.station_order,
-              bookingEntry.depOrder,
-              bookingEntry.arrOrder
-            )
-          ) {
-            continue;
-          }
-
-          const seatIds = bookingSeatMap.get(bookingEntry.bookingId);
-          if (!seatIds) continue;
-
-          for (const seatId of seatIds) {
-            occupiedSeatIds.add(seatId);
+          if (nextLeg) {
+            currentJourney.push(nextLeg);
+            lastArrival = this.getDateTime(nextLeg.date, nextLeg.arrival_time);
+          } else {
+            foundFullJourney = false;
+            break;
           }
         }
+
+        if (!foundFullJourney) continue;
+
+        // 3. Tính toán chỗ ngồi trống cho hành trình này
+        const train = firstLeg.train_id;
+        const capacity = train.capacity || 100;
+        const occupiedSeatIds = new Set<string>();
+
+        // Lặp qua tất cả booking của tàu này và xem có cái nào chồng lấn với yêu cầu của chúng ta không
+        for (const schedule of trainSchedules) {
+          const bookingEntries = bookingMap.get(schedule._id.toString()) || [];
+
+          for (const bookingEntry of bookingEntries) {
+            if (
+              bookingEntry.depOrder == null ||
+              bookingEntry.arrOrder == null ||
+              !this.isJourneyOverlapping(
+                depStation.station_order,
+                arrStation.station_order,
+                bookingEntry.depOrder,
+                bookingEntry.arrOrder
+              )
+            ) {
+              continue;
+            }
+
+            const seatIds = bookingSeatMap.get(bookingEntry.bookingId);
+            if (!seatIds) continue;
+
+            for (const seatId of seatIds) {
+              occupiedSeatIds.add(seatId);
+            }
+          }
+        }
+
+        const availableSeats = Math.max(0, capacity - occupiedSeatIds.size);
+        const distance = calculateTotalRouteDistance(routeDocs as any);
+        const durationMs = lastArrival.getTime() - this.getDateTime(firstLeg.date, firstLeg.departure_time).getTime();
+        const durationHours = durationMs / (1000 * 60 * 60);
+
+        results.push({
+          _id: firstLeg._id,
+          train_id: trainId,
+          train,
+          departure_station: depStation.station_name,
+          arrival_station: arrStation.station_name,
+          departure_station_id: String(depStation._id),
+          arrival_station_id: String(arrStation._id),
+          date: firstLeg.date,
+          departure_time: firstLeg.departure_time,
+          arrival_time: this.calculateArrivalTime(firstLeg.departure_time, durationHours),
+          distance,
+          duration: this.formatDurationFromHours(durationHours),
+          price: calculateBaseRoutePrice(routeDocs as any),
+          availableSeats,
+        });
       }
-
-      const availableSeats = Math.max(0, capacity - occupiedSeatIds.size);
-      if (availableSeats <= 0) continue;
-
-      const distance = calculateTotalRouteDistance(routeDocs as any);
-      const duration = routeDocs.reduce(
-        (total, route) => total + (route?.hour || 0),
-        0
-      );
-
-      results.push({
-        _id: firstLeg._id,
-        train_id: trainId,
-        train,
-        departure_station: depStation.station_name,
-        arrival_station: arrStation.station_name,
-        departure_station_id: String(depStation._id),
-        arrival_station_id: String(arrStation._id),
-        date: firstLeg.date,
-        departure_time: firstLeg.departure_time,
-        arrival_time: this.calculateArrivalTime(firstLeg.departure_time, duration),
-        distance,
-        duration: this.formatDurationFromHours(duration),
-        price: calculateBaseRoutePrice(routeDocs as any),
-        availableSeats,
-      });
     }
 
     if (!results.length) {
+      console.log(`[Search] No valid journeys formed from trains`);
       return { trips: [], message: "Khong co chuyen phu hop" };
     }
 

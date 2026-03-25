@@ -1,7 +1,7 @@
 import express from "express";
-import { register, login, forgotPassword, resetPassword, verifyRegisterOtp, resendRegisterOtp } from "../controllers/auth.controller";
+import { register, login, forgotPassword, resetPassword, verifyRegisterOtp, resendRegisterOtp, googleLogin } from "../controllers/auth.controller";
 import { validate } from "../middlewares/validate.middleware";
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyRegisterOtpSchema, resendRegisterOtpSchema } from "../schemas/auth.schema";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyRegisterOtpSchema, resendRegisterOtpSchema, googleLoginSchema } from "../schemas/auth.schema";
 
 const router = express.Router();
 
@@ -22,5 +22,8 @@ router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 
 // POST /api/v1/auth/reset-password
 router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
+
+// POST /api/v1/auth/google
+router.post("/google", validate(googleLoginSchema), googleLogin);
 
 export default router;

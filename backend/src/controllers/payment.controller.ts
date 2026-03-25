@@ -5,6 +5,7 @@ import { BookingPassenger } from "../models/bookingpassenger.model";
 import * as seatService from "../services/seat.service";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AuthRequest } from "../middlewares/auth.middleware";
+import { WalletService } from "../services/wallet.service";
 
 export class PaymentController {
   static createPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -48,6 +49,38 @@ export class PaymentController {
     });
   });
 
+  static createDepositPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { amount } = req.body as { amount: number };
+    const userId = req.user?.userId;
+
+    if (!amount || isNaN(amount) || amount < 10000 || !userId) {
+      return res.status(400).json({ success: false, message: "Số tiền nạp không hợp lệ (tối thiểu 10,000đ)" });
+    }
+
+    const ipAddr =
+      (req.headers["x-forwarded-for"] as string) ||
+      req.socket.remoteAddress ||
+      "127.0.0.1";
+
+    // Generate a unique transaction reference for deposit
+    const txnRef = "DEP" + Date.now().toString(36).toUpperCase();
+
+    // Create pending transaction in database
+    await WalletService.createPendingDeposit(userId, amount, txnRef, `Nạp tiền vào ví qua VNPay`);
+
+    const paymentUrl = VNPayService.createPaymentUrl(
+      ipAddr,
+      amount,
+      txnRef,
+      `Nap tien vao vi - ${amount.toLocaleString()} VND`
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { paymentUrl, txnRef },
+    });
+  });
+
   static vnpayReturn = asyncHandler(async (req: Request, res: Response) => {
     const vnp_Params = { ...req.query };
     const isValid = VNPayService.validateReturn(vnp_Params);
@@ -62,6 +95,21 @@ export class PaymentController {
     const txnRef = vnp_Params["vnp_TxnRef"] as string;
 
     if (responseCode === "00") {
+      if (txnRef.startsWith("DEP")) {
+        // Handle Wallet Deposit
+        try {
+            await WalletService.completeDeposit(txnRef);
+            return res.redirect(
+                `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=success&txnRef=${txnRef}`
+            );
+        } catch (error: any) {
+            return res.redirect(
+                `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=error&message=${encodeURIComponent(error.message)}`
+            );
+        }
+      }
+
+      // Handle Booking Payment
       const paidBookings = await BookingModel.find({ payment_txn_ref: txnRef })
         .populate({ path: "schedule_id", select: "train_id" })
         .populate({ path: "departure_station_id", select: "station_order" })
@@ -123,17 +171,21 @@ export class PaymentController {
       }
 
       return res.redirect(
-        `${process.env.CLIENT_URL}/payment-result?status=success&txnRef=${encodeURIComponent(txnRef)}`
+
+        `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=success&txnRef=${txnRef}`
+
       );
     } else {
       // Payment failed
-      await BookingModel.updateMany(
-        { payment_txn_ref: txnRef },
-        { status: "cancelled" }
-      );
+      if (!txnRef.startsWith("DEP")) {
+        await BookingModel.updateMany(
+          { payment_txn_ref: txnRef },
+          { status: "cancelled" }
+        );
+      }
 
       return res.redirect(
-        `${process.env.CLIENT_URL}/payment-result?status=failed&code=${responseCode}`
+        `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=failed&code=${responseCode}&txnRef=${txnRef}`
       );
     }
   });

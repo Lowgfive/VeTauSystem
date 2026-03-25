@@ -5,6 +5,7 @@ interface User {
     name: string;
     email: string;
     role: "user" | "admin";
+    balance: number;
 }
 
 interface AuthState {
@@ -37,8 +38,14 @@ const authSlice = createSlice({
             localStorage.removeItem("token");
             localStorage.removeItem("user");
         },
+        updateBalance(state, action: PayloadAction<number>) {
+            if (state.user) {
+                state.user.balance = action.payload;
+                localStorage.setItem("user", JSON.stringify(state.user));
+            }
+        },
     },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, updateBalance } = authSlice.actions;
 export default authSlice.reducer;

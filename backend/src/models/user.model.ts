@@ -11,8 +11,10 @@ export interface IUser extends Document {
     cccd?: string;
     role: UserRole;
     isVerified: boolean;
+    balance: number;
     otp?: string;
     otpExpiresAt?: Date;
+    googleId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -59,6 +61,10 @@ const UserSchema = new Schema<IUser>(
             type: Boolean,
             default: true,
         },
+        balance: {
+            type: Number,
+            default: 0,
+        },
         otp: {
             type: String,
             select: false,
@@ -66,6 +72,11 @@ const UserSchema = new Schema<IUser>(
         otpExpiresAt: {
             type: Date,
             select: false,
+        },
+        googleId: {
+            type: String,
+            unique: true,
+            sparse: true,
         },
     },
     {

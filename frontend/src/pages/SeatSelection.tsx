@@ -9,7 +9,8 @@ import { CountdownDisplay } from '../components/CountdownDisplay';
 import { useCartStore } from '../store/cartStore';
 import { toast } from 'sonner';
 import { connectSocket, getSocket, joinTrainRoom, leaveTrainRoom } from '../config/socket';
-import { useAppSelector } from '../hooks/useRedux';
+import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
+import { updateBalance } from '../store/slices/authSlice';
 import { changeBookingSchedule } from '../services/booking.service';
 
 type SeatSocketEvent = {
@@ -78,6 +79,7 @@ const SeatSelection: React.FC = () => {
   const expiresAt = useCartStore((state) => state.expiresAt);
   const clearExpiresAt = useCartStore((state) => state.clearExpiresAt);
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const selectedSeatsRef = useRef<SeatInfo[]>([]);
   const recentlyUnlockedSeatsRef = useRef<Map<string, number>>(new Map());
   const preserveLocksOnUnmountRef = useRef(false);
@@ -368,10 +370,14 @@ const SeatSelection: React.FC = () => {
       try {
         setLoading(true);
         const newSeatIds = selectedSeats.map((seat) => seat.seatId);
-        await changeBookingSchedule(changeBookingId, {
+        const res = await changeBookingSchedule(changeBookingId, {
           new_schedule_id: scheduleId!,
           new_seat_ids: newSeatIds,
         });
+
+        if (res.success && res.data?.newBalance !== undefined) {
+          dispatch(updateBalance(res.data.newBalance));
+        }
 
         localStorage.removeItem('change_booking_id');
         localStorage.removeItem('change_booking_code');

@@ -13,11 +13,15 @@ import {
   Calendar,
   Loader2,
   Ticket,
+  Wallet
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
+import { Badge } from "./ui/badge";
+import { useAppSelector, useAppDispatch } from "../hooks/useRedux";
+import { updateBalance } from "../store/slices/authSlice";
 
 interface SeatData {
   seat_id: string;
@@ -68,6 +72,7 @@ const buildBookingSignature = (bookings: BookingDataType[]) =>
 
 export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -107,28 +112,8 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
     setIsProcessing(true);
 
     try {
-      const signature = buildBookingSignature(bookings);
-      const pendingRaw = sessionStorage.getItem(PENDING_PAYMENT_KEY);
-
-      if (pendingRaw) {
-        try {
-          const pending = JSON.parse(pendingRaw) as {
-            signature?: string;
-            paymentUrl?: string;
-            bookingIds?: string[];
-          };
-
-          if (pending.signature === signature && pending.paymentUrl) {
-            window.location.href = pending.paymentUrl;
-            return;
-          }
-        } catch {
-          sessionStorage.removeItem(PENDING_PAYMENT_KEY);
-        }
-      }
-
-      // 1. Create booking(s) in backend
-      const createdIds: string[] = [];
+      // 1. Create booking(s) - The backend will automatically deduct from Wallet
+      const createdBookings: any[] = [];
 
       for (const b of bookings) {
         const res = await apiClient.post("/bookings/create", {
@@ -153,43 +138,34 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
         if (!res.data?.success) {
           throw new Error(res.data?.message || "Tạo booking thất bại");
         }
-        createdIds.push(res.data.data.booking._id);
+        
+        if (res.data.data.newBalance !== undefined) {
+          dispatch(updateBalance(res.data.data.newBalance));
+        }
+
+        createdBookings.push(res.data.data.booking);
       }
 
-      // 2. Request VNPay payment URL
-      const payRes = await apiClient.post("/payments/create-payment", {
-        booking_ids: createdIds,
-      });
+      toast.success("Thanh toán vé thành công qua ví!");
+      
+      // Clear session storage if any
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
 
-      if (!payRes.data?.success) {
-        throw new Error(payRes.data?.message || "Không thể tạo giao dịch thanh toán");
-      }
+      // Redirect to success page or my bookings
+      setTimeout(() => {
+        navigate("/manage", { state: { highlightBooking: createdBookings[0]?.booking_code } });
+      }, 1500);
 
-      const paymentUrl = payRes.data.data.paymentUrl;
-
-      sessionStorage.setItem(
-        PENDING_PAYMENT_KEY,
-        JSON.stringify({
-          signature,
-          bookingIds: createdIds,
-          paymentUrl,
-          txnRef: payRes.data.data.txnRef,
-          createdAt: Date.now(),
-        })
-      );
-
-      // 3. Redirect to VNPay
-      window.location.href = paymentUrl;
     } catch (err: any) {
       console.error(err);
-      if (err?.response?.status === 409) {
-        toast.error(
-          err?.response?.data?.message ||
-            'Ghế đã hết giữ chỗ hoặc đã được tạo đơn trước đó. Vui lòng quay lại chọn ghế hoặc tiếp tục thanh toán từ lần trước.'
-        );
-      } else {
-        toast.error(err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.");
+      const msg = err?.response?.data?.message || err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
+      toast.error(msg);
+      
+      if (msg.includes("Số dư ví không đủ")) {
+        // Suggest top-up
+        toast.info("Vui lòng nạp thêm tiền vào ví để tiếp tục.");
       }
+      
       setIsProcessing(false);
     }
   };
@@ -238,20 +214,26 @@ export function PaymentPage({ onBack, bookingData }: PaymentPageProps) {
             {/* VNPay card */}
             <Card className="p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
+                <Wallet className="w-5 h-5 text-primary" />
                 Phương thức thanh toán
               </h2>
-              <div className="flex items-center gap-4 p-4 border-2 border-primary bg-primary/5 rounded-xl">
-                <div className="p-3 rounded-xl bg-primary text-white">
-                  <CreditCard className="w-6 h-6" />
+              <div className="flex items-center gap-4 p-5 border-2 border-primary bg-primary/5 rounded-2xl relative overflow-hidden group transition-all hover:bg-primary/10">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                   <Wallet className="w-16 h-16 rotate-12" />
+                </div>
+                <div className="p-3.5 rounded-xl bg-primary text-white shadow-lg">
+                  <Wallet className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900">VNPay</div>
-                  <div className="text-sm text-gray-500">
-                    Thanh toán qua cổng VNPay – ATM, thẻ tín dụng, QR Code
+                  <div className="font-bold text-gray-900 text-lg">Ví Điện Tử (ĐSVN)</div>
+                  <div className="text-sm text-gray-500 font-medium">
+                    Số dư hiện tại: <span className="text-primary font-bold">{(useAppSelector(s => s.auth.user?.balance) || 0).toLocaleString()}đ</span>
                   </div>
                 </div>
-                <CheckCircle className="w-6 h-6 text-primary" />
+                <div className="flex items-center gap-3">
+                   <Badge className="bg-success/10 text-success border-success/20">Khuyên dùng</Badge>
+                   <CheckCircle className="w-7 h-7 text-primary" />
+                </div>
               </div>
             </Card>
 

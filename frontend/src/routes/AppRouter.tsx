@@ -18,6 +18,7 @@ const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 const ProfilePage = lazy(() => import("../pages/ProfilePage"));
 const ForgotPasswordPage = lazy(() => import("../pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("../pages/ResetPasswordPage"));
+const WalletPage = lazy(() => import("../pages/WalletPage"));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -67,9 +68,9 @@ export const AppRouter = () => (
                     </ProtectedRoute>
                 }
             />
-            <Route path="/manage" element={<ManageBookingPage />} />
+            <Route path="/manage" element={<ProtectedRoute><ManageBookingPage /></ProtectedRoute>} />
             <Route path="/payment-result" element={<PaymentResultPage />} />
-            <Route path="/support" element={<SupportPage />} />
+            <Route path="/support" element={<SupportPage onBack={() => window.history.back()} />} />
 
             {/* Guest only (redirect to home if already logged in) */}
             <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
@@ -80,6 +81,7 @@ export const AppRouter = () => (
             {/* Protected - must be logged in */}
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
 
             {/* Admin only (Temporarily bypassed for testing) */}
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
