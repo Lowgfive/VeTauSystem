@@ -41,11 +41,6 @@ export default function PaymentResultPage() {
             sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         }
     }, [isSuccess, status, clearCart, txnRef, navigate]);
-            toast.success(`Thanh toán thành công! Mã giao dịch: ${txnRef}`);
-            // Đưa về home
-            navigate("/");
-        }
-    }, [isSuccess, clearCart, navigate, txnRef]);
 
 
     if (isSuccess) {
