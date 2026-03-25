@@ -342,6 +342,7 @@ export function TrainSearchResults({
           "Ghế đã hết hoặc trạng thái đã thay đổi. Đã gỡ khỏi giỏ để đồng bộ lại."
         );
         return;
+
       }
 
       toast.error(e.response?.data?.message || "Không thể xoá ghế");
