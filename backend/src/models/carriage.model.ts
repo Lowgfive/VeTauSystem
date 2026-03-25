@@ -35,6 +35,7 @@ const carriageSchema = new Schema<ICarriage>(
             rows: { type: Number, required: true },
             cols: { type: Number, required: true },
         },
+        seat_type_name: { type: String },
 
         // Toa có đang sử dụng không
         is_active: { type: Boolean, default: true },

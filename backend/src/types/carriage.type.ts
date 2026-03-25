@@ -22,5 +22,6 @@ export interface ICarriage extends Document {
     total_seats: number;          // Tổng số ghế ngồi trong toa
     standing_capacity: number;    // Sức chứa hành khách đứng
     layout: CarriageLayout;       // Cách bố trí ghế (rows x cols)
+    seat_type_name?: string;      // Tên hiển thị của loại ghế (VD: Toa Ghế Mềm)
     is_active: boolean;           // Toa có đang sử dụng không
 }

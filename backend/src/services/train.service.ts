@@ -49,6 +49,7 @@ interface CreateTrainInput {
     train_type?: TrainType;
     template_id?: string;
     amenities?: string[];
+    direction?: "forward" | "backward";
 }
 
 export const createTrain = async (input: CreateTrainInput) => {
@@ -99,6 +100,7 @@ export const createTrain = async (input: CreateTrainInput) => {
         train_code: input.train_code,
         train_type: input.train_type || "manual",
         template_id: input.template_id,
+        direction: input.direction,
         total_carriages: totalCarriages,
         capacity: totalCapacity,
         max_speed: 120,
