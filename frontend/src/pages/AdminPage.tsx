@@ -1,26 +1,16 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { logout } from '../store/slices/authSlice';
-import { AdminLayout } from '../components/admin/AdminLayout';
-import { TrainManagement } from '../components/admin/TrainManagement';
-
-import { TicketManagement } from '../components/admin/TicketManagement';
-
-import { ScheduleManagement } from '../components/admin/ScheduleManagement';
-
-
-
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/useRedux';
 import { logout } from '../store/slices/authSlice';
+import { AdminLayout } from '../components/admin/AdminLayout';
+import { AdminDashboard } from '../components/admin/AdminDashboard';
+import { TrainManagement } from '../components/admin/TrainManagement';
+import { TicketManagement } from '../components/admin/TicketManagement';
+import { ScheduleManagement } from '../components/admin/ScheduleManagement';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('trains');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tickets' | 'trains' | 'schedules' | 'reports'>('dashboard');
     const dispatch = useAppDispatch();
-    const navigate = useNavigate();
-
-    const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -30,13 +20,14 @@ export default function AdminPage() {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'dashboard':
+                return <AdminDashboard />;
             case 'trains':
                 return <TrainManagement />;
             case 'schedules':
                 return <ScheduleManagement />;
             case 'tickets':
                 return <TicketManagement />;
-            case 'dashboard':
             case 'reports':
                 return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">
